@@ -6,6 +6,7 @@ const whois = require('whois');
 const parseWhois = require('parse-whois');
 const disposableDomains = require('./disposableDomains');
 const roles = require('./roles');
+const {domainTypoCheck} = require("./validDomains");
 
 const app = express();
 app.use(express.json());
@@ -179,9 +180,13 @@ app.post('/validate', async (req, res) => {
         return res.json({status: 'spamtrap', reason: ''});
     }
 
+    const hasTypo = domainTypoCheck(domain);
+    if(hasTypo) {
+        return res.json({status: 'invalid', reason: 'possible_typo'});
+    }
+
     try {
         const domainInfo = await getDomainAge(domain);
-        console.log({domainInfo})
         const mxRecords = await checkDomainMxRecords(domain);
         const mxHost = mxRecords[0].exchange;
 
