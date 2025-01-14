@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "dnsbl": "^4.0.2",
+    "dnsbl-lookup": "^0.3.3",
+    "express": "^4.21.2",
+    "parse-whois": "^1.0.0",
+    "whois": "^2.14.2",
+    "whois-parsed": "^1.0.14"
+  }
+}

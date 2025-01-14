@@ -1,0 +1,14 @@
+[
+  {
+    "zone": "zen.spamhaus.org"
+  },
+  {
+    "zone": "bl.spamcop.net"
+  },
+  {
+    "zone": "dnsbl.sorbs.net"
+  },
+  {
+    "zone": "b.barracudacentral.org"
+  }
+]
