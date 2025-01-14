@@ -8,7 +8,7 @@ function domainTypoCheck(inputDomain) {
     let smallestDistance = Infinity;
 
     for (const domain of validDomains) {
-        const distance = leven(inputDomain, domain);
+        const distance = findDistance(inputDomain, domain);
         if (distance < smallestDistance) {
             console.log({distance})
             smallestDistance = distance;
@@ -24,7 +24,7 @@ function domainTypoCheck(inputDomain) {
     return null;
 }
 
-function leven(first, second) {
+function findDistance(first, second) {
     if (first === second) {
         return 0;
     }

@@ -19,14 +19,27 @@ function validateEmailFormat(email) {
 
 // Check domain MX records
 function checkDomainMxRecords(domain) {
-    return new Promise((resolve, reject) => {
-        dns.resolveMx(domain, (err, addresses) => {
-            if (err || !addresses || addresses.length === 0) {
-                return reject('no_dns_entries');
-            }
-            addresses.sort((a, b) => a.priority - b.priority);
-            resolve(addresses);
-        });
+    return new Promise(async (resolve, reject) => {
+        // TODO - These 2 check takes more resources and disabled for now
+        // const aRecords = await dns.promises.resolve(domain, 'A').catch(() => []);;
+        // const aaaaRecords = await dns.promises.resolve(domain, 'AAAA').catch(() => []);
+        const mxRecords = await dns.promises.resolveMx(domain).catch(() => []);
+
+        // TODO - These check takes more resources and disabled for now
+        // If all records are empty, no DNS entries exist
+        // if (aRecords.length === 0 && aaaaRecords.length === 0 && mxRecords.length === 0) {
+        //     reject('no_dns_entries');
+        // }
+
+        // TODO - These 2 check takes more resources and disabled for now
+        // If all records are empty, no DNS entries exist
+        // if (aRecords.length !== 0 && aaaaRecords.length !== 0 && mxRecords.length === 0) {
+        if (mxRecords.length === 0) {
+            reject('does_not_accept_mail');
+        }
+
+        mxRecords.sort((a, b) => a.priority - b.priority);
+        resolve(mxRecords);
     });
 }
 
