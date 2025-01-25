@@ -8,6 +8,7 @@ import { seconds, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { CATCH_ALL_EMAIL } from '../common/utility/constant';
 import { EmailDto } from './dto/email.dto';
 import freeEmailProviderList from '../common/utility/free-email-provider-list';
+import { ErrorDomain } from './entities/error_domain.entity';
 
 @Controller('domains')
 export class DomainsController {
@@ -33,6 +34,9 @@ export class DomainsController {
 
       // Get domain part from the email address
       const domain = email.split('@')[1];
+
+      // Query DB to check if domain found in error_domains
+      await this.domainService.findErrorDomain(domain);
 
       // Query DB for existing domain check
       const dbDomain: Domain = await this.domainService.findOne(domain);
@@ -60,7 +64,7 @@ export class DomainsController {
         // are spam blocking lists. They allow a website administrator to block
         // messages from specific systems that have a history of sending spam.
         // These lists are based on the Internet's Domain Name System, or DNS.
-        await this.domainService.checkDomainSpamDatabaseList(domain);
+        await this.domainService.checkDomainSpamDatabaseList(domain, dbDomain);
 
         // Step - 5 : Check if the domain name is very similar to another popular domain
         // Usually these domains are used for spam or spam-trap.
@@ -95,12 +99,19 @@ export class DomainsController {
           domain_age_days: domainInfo['domain_age_days'],
           mx_record_host: mxRecordHost,
           domain_ip: '',
+          domain_error: '',
         };
         await this.domainService.create(createDomainDto);
       }
 
       return response;
     } catch (e) {
+      const domain = email.split('@')[1];
+      const errorDomain: any = {
+        domain,
+        domain_error: e,
+      };
+      await this.domainService.createOrUpdateErrorDomain(errorDomain);
       return e;
     }
   }

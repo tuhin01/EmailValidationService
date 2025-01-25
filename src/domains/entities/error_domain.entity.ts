@@ -8,8 +8,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('domains') // sql table name === 'domains'
-export class Domain extends BaseEntity {
+@Entity('error_domains') // sql table name === 'error_domains'
+export class ErrorDomain extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -17,14 +17,8 @@ export class Domain extends BaseEntity {
   @Index()
   domain: string;
 
-  @Column({ nullable: true, type: 'varchar', length: 64 })
-  domain_ip: string;
-
-  @Column()
-  domain_age_days: number;
-
-  @Column()
-  mx_record_host: string;
+  @Column('json', { nullable: true })
+  domain_error: {};
 
   @CreateDateColumn({ type: 'timestamptz' })
   readonly created_at: Date;

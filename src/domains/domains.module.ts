@@ -6,14 +6,16 @@ import { Domain } from './entities/domain.entity';
 import { DisposableDomainsService } from '../disposable-domains/disposable-domains.service';
 import { DisposableDomainsModule } from '../disposable-domains/disposable-domains.module';
 import { EmailRolesModule } from '../email-roles/email-roles.module';
+import { ErrorDomain } from './entities/error_domain.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Domain]),
+    TypeOrmModule.forFeature([Domain, ErrorDomain]),
     DisposableDomainsModule,
     EmailRolesModule,
   ],
   controllers: [DomainsController],
   providers: [DomainService],
 })
-export class DomainsModule {}
+export class DomainsModule {
+}

@@ -11,10 +11,15 @@ import * as net from 'node:net';
 import { DNSBL } from '../../common/utility/dnsbl';
 import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
-import { MX_RECORD_CHECK_DAY_GAP } from '../../common/utility/constant';
+import {
+  ERROR_DOMAIN_CHECK_DAY_GAP,
+  MX_RECORD_CHECK_DAY_GAP,
+  SPAM_DB_CHECK_DAY_GAP,
+} from '../../common/utility/constant';
 import { DisposableDomainsService } from '../../disposable-domains/disposable-domains.service';
 import { EmailRolesService } from '../../email-roles/email-roles.service';
 import { EmailRole } from '../../email-roles/entities/email-role.entity';
+import { ErrorDomain } from '../entities/error_domain.entity';
 
 @Injectable()
 export class DomainService {
@@ -51,7 +56,26 @@ export class DomainService {
   }
 
   async findOne(domain: string) {
-    return await Domain.findOneBy({ domain });
+    return Domain.findOneBy({ domain });
+  }
+
+  async findErrorDomain(domain: string) {
+    return new Promise(async (resolve, reject) => {
+      const errorDomain: ErrorDomain = await ErrorDomain.findOneBy({
+        domain,
+      });
+      if (errorDomain) {
+        const dayPassedSinceLastMxCheck = differenceInDays(
+          new Date(),
+          errorDomain.created_at,
+        );
+        if (dayPassedSinceLastMxCheck < ERROR_DOMAIN_CHECK_DAY_GAP) {
+          reject(errorDomain.domain_error);
+          return;
+        }
+      }
+      resolve(true);
+    });
   }
 
   async create(createDomainDto: CreateDomainDto) {
@@ -67,6 +91,24 @@ export class DomainService {
     const domain = Domain.create({ ...createDomainDto });
     return domain.save();
   }
+
+  async createOrUpdateErrorDomain(errorDomain: ErrorDomain) {
+    const existingDomain = await ErrorDomain.findOneBy({
+      domain: errorDomain.domain,
+    });
+    if (existingDomain) {
+      if (errorDomain.domain_error['status'] !== existingDomain.domain_error['status']) {
+        return true;
+      } else {
+        existingDomain.domain_error = errorDomain.domain_error;
+        await existingDomain.save();
+        return true;
+      }
+    }
+    const domain = ErrorDomain.create({ ...errorDomain });
+    return domain.save();
+  }
+
 
   async update(domain: string, updateDto: UpdateDomainDto) {
     const existingDomain = await Domain.findOneBy({ domain });
@@ -163,7 +205,6 @@ export class DomainService {
           new Date(),
           dbDomain.created_at,
         );
-        console.log({ dayPassedSinceLastMxCheck });
         if (dayPassedSinceLastMxCheck < MX_RECORD_CHECK_DAY_GAP) {
           console.log('NOT Saving MX...');
           resolve(dbDomain.mx_record_host);
@@ -277,14 +318,36 @@ export class DomainService {
     });
   }
 
-  checkDomainSpamDatabaseList(domain: string) {
+  checkDomainSpamDatabaseList(domain: string, dbDomain: Domain) {
     return new Promise((resolve, reject) => {
+
+      if (dbDomain) {
+        const dayPassedSinceSpamDBCheck = differenceInDays(
+          new Date(),
+          dbDomain.created_at,
+        );
+        console.log({ dayPassedSinceSpamDBCheck });
+        if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
+          // if (dbDomain.is_spam_database_listed) {
+          //   reject({ status: 'spamtrap', reason: '' });
+          // } else {
+          //   resolve(true);
+          // }
+          return;
+        }
+      }
+
       const dnsbl = new DNSBL(domain);
 
       dnsbl.on('error', function(error, blocklist) {
       });
-      dnsbl.on('data', function(result, blocklist) {
+      dnsbl.on('data', async function(result, blocklist) {
         if (result.status === 'listed') {
+          // If the domain is already saved and is_spam_database_listed is listed then we update DB
+          // if (dbDomain) {
+          //   dbDomain.is_spam_database_listed = true;
+          //   await dbDomain.save();
+          // }
           reject({ status: 'spamtrap', reason: '' });
           return;
         }

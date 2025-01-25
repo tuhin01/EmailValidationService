@@ -1,4 +1,4 @@
-import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsJSON, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateDomainDto {
   @IsString()
@@ -10,6 +10,9 @@ export class CreateDomainDto {
 
   @IsNumber()
   readonly domain_age_days: number;
+
+  @IsJSON()
+  readonly domain_error: {};
 
   @IsString()
   readonly mx_record_host: string;
