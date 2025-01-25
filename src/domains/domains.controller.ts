@@ -106,6 +106,12 @@ export class DomainsController {
 
       return response;
     } catch (e) {
+
+      const skipReasons = ['role_based', 'invalid_email_format'];
+      if (e.reason && skipReasons.includes(e.reason)) {
+        return e;
+      }
+
       const domain = email.split('@')[1];
       const errorDomain: any = {
         domain,

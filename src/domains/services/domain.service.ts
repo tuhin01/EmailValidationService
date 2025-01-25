@@ -321,21 +321,21 @@ export class DomainService {
   checkDomainSpamDatabaseList(domain: string, dbDomain: Domain) {
     return new Promise((resolve, reject) => {
 
-      if (dbDomain) {
-        const dayPassedSinceSpamDBCheck = differenceInDays(
-          new Date(),
-          dbDomain.created_at,
-        );
-        console.log({ dayPassedSinceSpamDBCheck });
-        if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
-          // if (dbDomain.is_spam_database_listed) {
-          //   reject({ status: 'spamtrap', reason: '' });
-          // } else {
-          //   resolve(true);
-          // }
-          return;
-        }
-      }
+      // if (dbDomain) {
+      //   const dayPassedSinceSpamDBCheck = differenceInDays(
+      //     new Date(),
+      //     dbDomain.created_at,
+      //   );
+      //   console.log({ dayPassedSinceSpamDBCheck });
+      //   if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
+      //     // if (dbDomain.is_spam_database_listed) {
+      //     //   reject({ status: 'spamtrap', reason: '' });
+      //     // } else {
+      //     //   resolve(true);
+      //     // }
+      //     return;
+      //   }
+      // }
 
       const dnsbl = new DNSBL(domain);
 
