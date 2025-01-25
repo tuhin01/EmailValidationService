@@ -1,9 +1,4 @@
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { Domain } from '../entities/domain.entity';
 import { CreateDomainDto } from '../dto/create-domain.dto';
 import { UpdateDomainDto } from '../dto/update-domain.dto';
@@ -14,7 +9,6 @@ import * as parseWhois from 'parse-whois';
 import * as dns from 'dns';
 import * as net from 'node:net';
 import { DNSBL } from '../../common/utility/dnsbl';
-import roles from '../../common/utility/roles';
 import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
 import { MX_RECORD_CHECK_DAY_GAP } from '../../common/utility/constant';
@@ -57,11 +51,7 @@ export class DomainService {
   }
 
   async findOne(domain: string) {
-    const existingDomain = await Domain.findOneBy({ domain });
-    if (!existingDomain) {
-      throw new NotFoundException(`Domain ${domain} not found`);
-    }
-    return existingDomain;
+    return await Domain.findOneBy({ domain });
   }
 
   async create(createDomainDto: CreateDomainDto) {
@@ -287,20 +277,19 @@ export class DomainService {
     });
   }
 
-  checkDomainSpamDatabaseList(domain) {
+  checkDomainSpamDatabaseList(domain: string) {
     return new Promise((resolve, reject) => {
-      const uribl = new DNSBL(domain);
+      const dnsbl = new DNSBL(domain);
 
-      uribl.on('error', function(error, blocklist) {
+      dnsbl.on('error', function(error, blocklist) {
       });
-      uribl.on('data', function(result, blocklist) {
-        // console.log(result.status + ' in ' + blocklist.zone);
+      dnsbl.on('data', function(result, blocklist) {
         if (result.status === 'listed') {
           reject({ status: 'spamtrap', reason: '' });
           return;
         }
       });
-      uribl.on('done', function() {
+      dnsbl.on('done', function() {
         resolve(true);
       });
     });

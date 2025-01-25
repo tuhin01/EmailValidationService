@@ -1,15 +1,4 @@
-const validDomains = [
-  'gmail.com',
-  'yahoo.com',
-  'hotmail.com',
-  'outlook.com',
-  'icloud.com',
-  'aol.com',
-  'protonmail.com',
-  'zoho.com',
-  'gmx.com',
-  'yandex.com',
-];
+import freeEmailProviderList from './free-email-provider-list';
 
 class DomainTypoChecker {
   private array: number[] = [];
@@ -19,7 +8,7 @@ class DomainTypoChecker {
     let closestMatch: string | null = null;
     let smallestDistance: number = Infinity;
 
-    for (const domain of validDomains) {
+    for (const domain of freeEmailProviderList) {
       const distance = this.findDistance(inputDomain, domain);
       if (distance < smallestDistance) {
         smallestDistance = distance;
@@ -55,7 +44,7 @@ class DomainTypoChecker {
     while (
       firstLength > 0 &&
       first.charCodeAt(~-firstLength) === second.charCodeAt(~-secondLength)
-    ) {
+      ) {
       firstLength--;
       secondLength--;
     }
@@ -65,7 +54,7 @@ class DomainTypoChecker {
     while (
       start < firstLength &&
       first.charCodeAt(start) === second.charCodeAt(start)
-    ) {
+      ) {
       start++;
     }
 
