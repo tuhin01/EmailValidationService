@@ -13,6 +13,6 @@ export class EmailRole extends BaseEntity {
   id: number;
 
   @Column({ type: 'varchar', length: 255 })
-  @Index()
+  @Index({ unique: true })
   role: string;
 }

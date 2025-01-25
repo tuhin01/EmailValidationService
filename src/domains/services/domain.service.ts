@@ -19,13 +19,17 @@ import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
 import { MX_RECORD_CHECK_DAY_GAP } from '../../common/utility/constant';
 import { DisposableDomainsService } from '../../disposable-domains/disposable-domains.service';
+import { EmailRolesService } from '../../email-roles/email-roles.service';
+import { EmailRole } from '../../email-roles/entities/email-role.entity';
 
 @Injectable()
 export class DomainService {
   constructor(
     private dataSource: DataSource,
     private disposableDomainsService: DisposableDomainsService,
-  ) {}
+    private emailRolesService: EmailRolesService,
+  ) {
+  }
 
   async createMany(domains: Domain[]) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -287,24 +291,25 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       const uribl = new DNSBL(domain);
 
-      uribl.on('error', function (error, blocklist) {});
-      uribl.on('data', function (result, blocklist) {
+      uribl.on('error', function(error, blocklist) {
+      });
+      uribl.on('data', function(result, blocklist) {
         // console.log(result.status + ' in ' + blocklist.zone);
         if (result.status === 'listed') {
           reject({ status: 'spamtrap', reason: '' });
           return;
         }
       });
-      uribl.on('done', function () {
+      uribl.on('done', function() {
         resolve(true);
       });
     });
   }
 
   async isRoleBasedEmail(email) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const localPart = email.split('@')[0].toLowerCase();
-      const isRoleBased = roles.includes(localPart);
+      const isRoleBased: EmailRole = await this.emailRolesService.findOne(localPart);
       if (isRoleBased) {
         reject({ status: 'do_not_mail', reason: 'role_based' });
         return;

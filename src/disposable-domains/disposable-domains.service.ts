@@ -13,10 +13,6 @@ export class DisposableDomainsService {
     return 'This action adds a new disposableDomain';
   }
 
-  findAll() {
-    return `This action returns all disposableDomains`;
-  }
-
   async findByDomain(domain: string) {
     return await DisposableDomain.findOneBy({
       domain,
@@ -40,11 +36,4 @@ export class DisposableDomainsService {
     }
   }
 
-  update(id: number, updateDisposableDomainDto: UpdateDisposableDomainDto) {
-    return `This action updates a #${id} disposableDomain`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} disposableDomain`;
-  }
 }
