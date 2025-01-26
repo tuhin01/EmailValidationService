@@ -20,6 +20,7 @@ import { DisposableDomainsService } from '../../disposable-domains/disposable-do
 import { EmailRolesService } from '../../email-roles/email-roles.service';
 import { EmailRole } from '../../email-roles/entities/email-role.entity';
 import { ErrorDomain } from '../entities/error_domain.entity';
+import { EmailReason, EmailStatus, EmailStatusType } from '../../common/utility/email-status-type';
 
 @Injectable()
 export class DomainService {
@@ -59,8 +60,8 @@ export class DomainService {
     return Domain.findOneBy({ domain });
   }
 
-  async findErrorDomain(domain: string) {
-    return new Promise(async (resolve, reject) => {
+  async findErrorDomain(domain: string): Promise<ErrorDomain> {
+    return new Promise(async (resolve: any, reject): Promise<ErrorDomain> => {
       const errorDomain: ErrorDomain = await ErrorDomain.findOneBy({
         domain,
       });
@@ -74,7 +75,7 @@ export class DomainService {
           return;
         }
       }
-      resolve(true);
+      resolve(errorDomain);
     });
   }
 
@@ -136,42 +137,49 @@ export class DomainService {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       const isValid = emailRegex.test(email);
       if (!isValid) {
-        reject({
-          status: 'invalid',
-          reason: 'invalid_email_format',
-        });
+        const error: EmailStatusType = {
+          status: EmailStatus.INVALID,
+          reason: EmailReason.INVALID_EMAIL_FORMAT,
+        };
+        reject(error);
+        return;
       }
       resolve(true);
     });
   }
 
   // Perform WHOIS lookup for domain age
-  async getDomainAge(domain, dbDomain: Domain) {
+  async getDomainAge(domain: string, dbDomain: Domain) {
     return new Promise((resolve, reject) => {
       if (dbDomain) {
         resolve({ domain_age_days: dbDomain.domain_age_days });
+        return;
       }
 
       whois.lookup(domain, (err, data) => {
-        if (err)
-          reject({
-            status: 'invalid_domain',
-            reason: 'domain_not_found',
-          });
+        if (err) {
+          const error: EmailStatusType = {
+            status: EmailStatus.INVALID_DOMAIN,
+            reason: EmailReason.DOMAIN_NOT_FOUND,
+          };
+          reject(error);
+          return;
+        }
 
         try {
           const parsedData = parseWhois.parseWhoIsData(data);
-          // console.log({parsedData})
           const domainAge = parsedData.find(
             (p) => p.attribute === 'Creation Date',
           );
           const creationDate = domainAge?.value;
 
           if (!creationDate) {
-            reject({
-              status: 'invalid_domain',
-              reason: 'domain_whois_data_not_found',
-            });
+            const error: EmailStatusType = {
+              status: EmailStatus.INVALID_DOMAIN,
+              reason: EmailReason.DOMAIN_WHOIS_DATA_NOT_FOUND,
+            };
+            reject(error);
+            return;
           }
 
           const registrationDate = new Date(creationDate);
@@ -179,14 +187,15 @@ export class DomainService {
             (Date.now() - registrationDate.getTime()) / (1000 * 60 * 60 * 24);
 
           resolve({
-            // creation_date: registrationDate.toISOString(),
             domain_age_days: Math.floor(ageInDays),
           });
         } catch (err) {
-          reject({
-            status: 'invalid_domain',
-            reason: 'domain_whois_data__parse_error',
-          });
+          const error: EmailStatusType = {
+            status: EmailStatus.INVALID_DOMAIN,
+            reason: EmailReason.DOMAIN_WHOIS_PARSE_ERROR,
+          };
+          reject(error);
+          return;
         }
       });
     });
@@ -226,7 +235,12 @@ export class DomainService {
       // If all records are empty, no DNS entries exist
       // if (aRecords.length !== 0 && aaaaRecords.length !== 0 && mxRecords.length === 0) {
       if (mxRecords.length === 0) {
-        reject({ status: 'invalid', reason: 'does_not_accept_mail' });
+        const error: EmailStatusType = {
+          status: EmailStatus.INVALID,
+          reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+        };
+        reject(error);
+
         return;
       }
 
@@ -248,8 +262,13 @@ export class DomainService {
     return new Promise(async (resolve, reject) => {
       try {
         const isCatchAllValid = await this.verifySmtp(email, mxHost);
-        if (isCatchAllValid['status'] === 'valid') {
-          reject({ status: 'catch-all', reason: '' });
+        if (isCatchAllValid['status'] === EmailStatus.VALID) {
+          const error: EmailStatusType = {
+            status: EmailStatus.CATCH_ALL,
+            reason: EmailReason.EMPTY,
+          };
+          reject(error);
+
           return;
         }
         resolve(true);
@@ -259,7 +278,7 @@ export class DomainService {
     });
   }
 
-  async verifySmtp(email, mxHost) {
+  async verifySmtp(email: string, mxHost: string) {
     return new Promise((resolve, reject) => {
       const socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
@@ -283,59 +302,69 @@ export class DomainService {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes('550')) {
           this.closeSmtpConnection(socket);
-          reject({
-            status: 'invalid',
-            reason: 'mailbox_not_found',
-          });
+          const error: EmailStatusType = {
+            status: EmailStatus.INVALID,
+            reason: EmailReason.MAILBOX_NOT_FOUND,
+          };
+          reject(error);
           return;
         } else if (stage === commands.length) {
           this.closeSmtpConnection(socket);
-          resolve({
-            status: 'valid',
-            reason: '',
-          });
+          const smailStatus: EmailStatusType = {
+            status: EmailStatus.VALID,
+            reason: EmailReason.EMPTY,
+          };
+          resolve(smailStatus);
           return;
         }
       });
 
       socket.on('error', (err) => {
         this.closeSmtpConnection(socket);
-        reject({
-          status: 'unknown',
+        const error: EmailStatusType = {
+          status: EmailStatus.UNKNOWN,
           reason: err.message,
-        });
+        };
+        reject(error);
         return;
       });
 
       socket.on('timeout', () => {
         this.closeSmtpConnection(socket);
-        reject({
-          status: 'unknown',
-          reason: 'smtp_connection_timeout',
-        });
+        const error: EmailStatusType = {
+          status: EmailStatus.UNKNOWN,
+          reason: EmailReason.SMTP_TIMEOUT,
+        };
+        reject(error);
         return;
       });
     });
   }
 
-  checkDomainSpamDatabaseList(domain: string, dbDomain: Domain) {
+  checkDomainSpamDatabaseList(domain: string, dbErrorDomain: ErrorDomain) {
     return new Promise((resolve, reject) => {
 
-      // if (dbDomain) {
-      //   const dayPassedSinceSpamDBCheck = differenceInDays(
-      //     new Date(),
-      //     dbDomain.created_at,
-      //   );
-      //   console.log({ dayPassedSinceSpamDBCheck });
-      //   if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
-      //     // if (dbDomain.is_spam_database_listed) {
-      //     //   reject({ status: 'spamtrap', reason: '' });
-      //     // } else {
-      //     //   resolve(true);
-      //     // }
-      //     return;
-      //   }
-      // }
+      // Check if domain is listed in error_domains and
+      // if the error is 'spamtrap' and if error listed time
+      // is not more than SPAM_DB_CHECK_DAY_GAP then we SKIP checking again
+      if (dbErrorDomain) {
+        const errorStatus: string = dbErrorDomain.domain_error['status'];
+        if (errorStatus === EmailStatus.SPAMTRAP) {
+          const dayPassedSinceSpamDBCheck = differenceInDays(
+            new Date(),
+            dbErrorDomain.created_at,
+          );
+          if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
+            const error: EmailStatusType = {
+              status: EmailStatus.SPAMTRAP,
+              reason: EmailReason.EMPTY,
+            };
+            reject(error);
+
+            return;
+          }
+        }
+      }
 
       const dnsbl = new DNSBL(domain);
 
@@ -343,12 +372,11 @@ export class DomainService {
       });
       dnsbl.on('data', async function(result, blocklist) {
         if (result.status === 'listed') {
-          // If the domain is already saved and is_spam_database_listed is listed then we update DB
-          // if (dbDomain) {
-          //   dbDomain.is_spam_database_listed = true;
-          //   await dbDomain.save();
-          // }
-          reject({ status: 'spamtrap', reason: '' });
+          const error: EmailStatusType = {
+            status: EmailStatus.SPAMTRAP,
+            reason: EmailReason.EMPTY,
+          };
+          reject(error);
           return;
         }
       });
@@ -363,7 +391,11 @@ export class DomainService {
       const localPart = email.split('@')[0].toLowerCase();
       const isRoleBased: EmailRole = await this.emailRolesService.findOne(localPart);
       if (isRoleBased) {
-        reject({ status: 'do_not_mail', reason: 'role_based' });
+        const error: EmailStatusType = {
+          status: EmailStatus.DO_NOT_MAIL,
+          reason: EmailReason.ROLE_BASED,
+        };
+        reject(error);
         return;
       }
       resolve(true);
@@ -375,10 +407,11 @@ export class DomainService {
       const isDisposable =
         await this.disposableDomainsService.findByDomain(domain);
       if (isDisposable) {
-        reject({
-          status: 'do_not_mail',
-          reason: 'disposable_domain_temporary_email',
-        });
+        const error: EmailStatusType = {
+          status: EmailStatus.DO_NOT_MAIL,
+          reason: EmailReason.DISPOSABLE_DOMAIN,
+        };
+        reject(error);
         return;
       }
       resolve(true);
@@ -389,7 +422,11 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       const domainHasTypo = new DomainTypoChecker().check(domain);
       if (domainHasTypo) {
-        reject({ status: 'invalid', reason: 'possible_typo' });
+        const error: EmailStatusType = {
+          status: EmailStatus.INVALID,
+          reason: EmailReason.POSSIBLE_TYPO,
+        };
+        reject(error);
         return;
       }
       resolve(true);

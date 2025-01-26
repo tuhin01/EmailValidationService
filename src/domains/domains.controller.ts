@@ -9,6 +9,7 @@ import { CATCH_ALL_EMAIL } from '../common/utility/constant';
 import { EmailDto } from './dto/email.dto';
 import freeEmailProviderList from '../common/utility/free-email-provider-list';
 import { ErrorDomain } from './entities/error_domain.entity';
+import { EmailReason, EmailResponseType, EmailStatus } from '../common/utility/email-status-type';
 
 @Controller('domains')
 export class DomainsController {
@@ -28,15 +29,20 @@ export class DomainsController {
   @Post('validate')
   async validate(@Body() emailDto: EmailDto) {
     const { email } = emailDto;
+    const emailStatus: EmailResponseType = {
+      email_address: email,
+    };
     try {
       // Step - 1 : Check email syntax validity
       await this.domainService.validateEmailFormat(email);
 
       // Get domain part from the email address
-      const domain = email.split('@')[1];
+      const [account, domain] = email.split('@');
+      emailStatus.account = account;
+      emailStatus.domain = domain;
 
       // Query DB to check if domain found in error_domains
-      await this.domainService.findErrorDomain(domain);
+      const dbErrorDomain: ErrorDomain = await this.domainService.findErrorDomain(domain);
 
       // Query DB for existing domain check
       const dbDomain: Domain = await this.domainService.findOne(domain);
@@ -64,24 +70,19 @@ export class DomainsController {
         // are spam blocking lists. They allow a website administrator to block
         // messages from specific systems that have a history of sending spam.
         // These lists are based on the Internet's Domain Name System, or DNS.
-        await this.domainService.checkDomainSpamDatabaseList(domain, dbDomain);
+        await this.domainService.checkDomainSpamDatabaseList(domain, dbErrorDomain);
 
         // Step - 5 : Check if the domain name is very similar to another popular domain
         // Usually these domains are used for spam or spam-trap.
         await this.domainService.domainTypoCheck(domain);
       }
-      // Step - 6 : Check domain whois database to make sure everything is in good shape
-      const domainInfo: any = await this.domainService.getDomainAge(
-        domain,
-        dbDomain,
-      );
 
       // Step 7 : Get the MX records of the domain
       const mxRecordHost: string =
         await this.domainService.checkDomainMxRecords(domain, dbDomain);
 
       if (!isFreeEmailDomain) {
-        // Step 8 : Check if the mail server response 'ok' for an abnormal email that does not exist.
+        // Step 8 : Check if the mail server smtpResponse 'ok' for an abnormal email that does not exist.
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
@@ -90,13 +91,22 @@ export class DomainsController {
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
-      const response = await this.domainService.verifySmtp(email, mxRecordHost);
-      console.log(response);
+      const smtpResponse = await this.domainService.verifySmtp(email, mxRecordHost);
+
+      // Step - 6 : Check domain whois database to make sure everything is in good shape
+      if (smtpResponse['status'] === EmailStatus.VALID) {
+        const domainInfo: any = await this.domainService.getDomainAge(
+          domain,
+          dbDomain,
+        );
+        emailStatus.domain_age_days = domainInfo.domain_age_days;
+      }
+
       if (!dbDomain) {
         console.log('Saving domain...');
         const createDomainDto: CreateDomainDto = {
           domain,
-          domain_age_days: domainInfo['domain_age_days'],
+          domain_age_days: emailStatus.domain_age_days,
           mx_record_host: mxRecordHost,
           domain_ip: '',
           domain_error: '',
@@ -104,21 +114,25 @@ export class DomainsController {
         await this.domainService.create(createDomainDto);
       }
 
-      return response;
-    } catch (e) {
+      emailStatus.email_status = smtpResponse['status'];
+      emailStatus.email_sub_status = smtpResponse['reason'];
+      return emailStatus;
+    } catch (error) {
+      emailStatus.email_status = error['status'];
+      emailStatus.email_sub_status = error['reason'];
 
-      const skipReasons = ['role_based', 'invalid_email_format'];
-      if (e.reason && skipReasons.includes(e.reason)) {
-        return e;
+      const skipReasons = [EmailReason.ROLE_BASED, EmailReason.INVALID_EMAIL_FORMAT];
+      if (error.reason && skipReasons.includes(error.reason)) {
+        return emailStatus;
       }
 
       const domain = email.split('@')[1];
       const errorDomain: any = {
         domain,
-        domain_error: e,
+        domain_error: error,
       };
       await this.domainService.createOrUpdateErrorDomain(errorDomain);
-      return e;
+      return emailStatus;
     }
   }
 
