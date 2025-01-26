@@ -11,7 +11,7 @@ import freeEmailProviderList from '../common/utility/free-email-provider-list';
 import { ErrorDomain } from './entities/error_domain.entity';
 import { EmailReason, EmailResponseType, EmailStatus, EmailStatusType } from '../common/utility/email-status-type';
 
-@Controller('domains')
+@Controller('email')
 export class DomainsController {
   constructor(private readonly domainService: DomainService) {
   }
