@@ -9,7 +9,7 @@ import { CATCH_ALL_EMAIL } from '../common/utility/constant';
 import { EmailDto } from './dto/email.dto';
 import freeEmailProviderList from '../common/utility/free-email-provider-list';
 import { ErrorDomain } from './entities/error_domain.entity';
-import { EmailReason, EmailResponseType, EmailStatus } from '../common/utility/email-status-type';
+import { EmailReason, EmailResponseType, EmailStatus, EmailStatusType } from '../common/utility/email-status-type';
 
 @Controller('domains')
 export class DomainsController {
@@ -91,10 +91,10 @@ export class DomainsController {
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
-      const smtpResponse = await this.domainService.verifySmtp(email, mxRecordHost);
+      const smtpResponse: EmailStatusType = await this.domainService.verifySmtp(email, mxRecordHost);
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
-      if (smtpResponse['status'] === EmailStatus.VALID) {
+      if (smtpResponse.status === EmailStatus.VALID) {
         const domainInfo: any = await this.domainService.getDomainAge(
           domain,
           dbDomain,
@@ -114,8 +114,8 @@ export class DomainsController {
         await this.domainService.create(createDomainDto);
       }
 
-      emailStatus.email_status = smtpResponse['status'];
-      emailStatus.email_sub_status = smtpResponse['reason'];
+      emailStatus.email_status = smtpResponse.status;
+      emailStatus.email_sub_status = smtpResponse.reason;
       return emailStatus;
     } catch (error) {
       emailStatus.email_status = error['status'];
