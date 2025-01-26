@@ -70,7 +70,7 @@ export class DomainsController {
         // are spam blocking lists. They allow a website administrator to block
         // messages from specific systems that have a history of sending spam.
         // These lists are based on the Internet's Domain Name System, or DNS.
-        await this.domainService.checkDomainSpamDatabaseList(domain, dbErrorDomain);
+        await this.domainService.checkDomainSpamDatabaseList(domain);
 
         // Step - 5 : Check if the domain name is very similar to another popular domain
         // Usually these domains are used for spam or spam-trap.
@@ -121,6 +121,9 @@ export class DomainsController {
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
 
+      // These reasons DO NOT confirm the domain has issues.
+      // Other emails from the same domain might be valid.
+      // So we do not save the domain into error_domains
       const skipReasons = [EmailReason.ROLE_BASED, EmailReason.INVALID_EMAIL_FORMAT];
       if (error.reason && skipReasons.includes(error.reason)) {
         return emailStatus;

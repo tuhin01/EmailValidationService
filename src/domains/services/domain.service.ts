@@ -12,6 +12,7 @@ import { DNSBL } from '../../common/utility/dnsbl';
 import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
 import {
+  CATCH_ALL_CHECK_DAY_GAP,
   ERROR_DOMAIN_CHECK_DAY_GAP,
   MX_RECORD_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
@@ -62,17 +63,36 @@ export class DomainService {
 
   async findErrorDomain(domain: string): Promise<ErrorDomain> {
     return new Promise(async (resolve: any, reject): Promise<ErrorDomain> => {
+
+      // Check if domain is listed in error_domains and
       const errorDomain: ErrorDomain = await ErrorDomain.findOneBy({
         domain,
       });
       if (errorDomain) {
-        const dayPassedSinceLastMxCheck = differenceInDays(
+        const errorStatus: string = errorDomain.domain_error['status'];
+        const dayPassedSinceCheck = differenceInDays(
           new Date(),
           errorDomain.created_at,
         );
-        if (dayPassedSinceLastMxCheck < ERROR_DOMAIN_CHECK_DAY_GAP) {
-          reject(errorDomain.domain_error);
-          return;
+        // if the error is 'spamtrap' and if error listed time
+        // is not more than SPAM_DB_CHECK_DAY_GAP then we SKIP checking again
+        if (errorStatus === EmailStatus.SPAMTRAP) {
+          if (dayPassedSinceCheck < SPAM_DB_CHECK_DAY_GAP) {
+            reject(errorDomain.domain_error);
+            return;
+          }
+          // if the error is 'spamtrap' and if error listed time
+          // is not more than CATCH_ALL_CHECK_DAY_GAP then we SKIP checking again
+        } else if (errorStatus === EmailStatus.CATCH_ALL) {
+          if (dayPassedSinceCheck < CATCH_ALL_CHECK_DAY_GAP) {
+            reject(errorDomain.domain_error);
+            return;
+          }
+        } else {
+          if (dayPassedSinceCheck < ERROR_DOMAIN_CHECK_DAY_GAP) {
+            reject(errorDomain.domain_error);
+            return;
+          }
         }
       }
       resolve(errorDomain);
@@ -259,6 +279,7 @@ export class DomainService {
   }
 
   async catchAllCheck(email, mxHost) {
+    console.log('check catch all...');
     return new Promise(async (resolve, reject) => {
       try {
         const isCatchAllValid: EmailStatusType = await this.verifySmtp(email, mxHost);
@@ -341,30 +362,8 @@ export class DomainService {
     });
   }
 
-  checkDomainSpamDatabaseList(domain: string, dbErrorDomain: ErrorDomain) {
+  checkDomainSpamDatabaseList(domain: string) {
     return new Promise((resolve, reject) => {
-
-      // Check if domain is listed in error_domains and
-      // if the error is 'spamtrap' and if error listed time
-      // is not more than SPAM_DB_CHECK_DAY_GAP then we SKIP checking again
-      if (dbErrorDomain) {
-        const errorStatus: string = dbErrorDomain.domain_error['status'];
-        if (errorStatus === EmailStatus.SPAMTRAP) {
-          const dayPassedSinceSpamDBCheck = differenceInDays(
-            new Date(),
-            dbErrorDomain.created_at,
-          );
-          if (dayPassedSinceSpamDBCheck < SPAM_DB_CHECK_DAY_GAP) {
-            const error: EmailStatusType = {
-              status: EmailStatus.SPAMTRAP,
-              reason: EmailReason.EMPTY,
-            };
-            reject(error);
-
-            return;
-          }
-        }
-      }
 
       const dnsbl = new DNSBL(domain);
 
