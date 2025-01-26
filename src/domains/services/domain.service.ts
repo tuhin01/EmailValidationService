@@ -261,9 +261,13 @@ export class DomainService {
   async catchAllCheck(email, mxHost) {
     return new Promise(async (resolve, reject) => {
       try {
-        const isCatchAllValid : EmailStatusType = await this.verifySmtp(email, mxHost);
+        const isCatchAllValid: EmailStatusType = await this.verifySmtp(email, mxHost);
         if (isCatchAllValid.status === EmailStatus.VALID) {
-          reject(isCatchAllValid);
+          const error: EmailStatusType = {
+            status: EmailStatus.CATCH_ALL,
+            reason: EmailReason.EMPTY,
+          };
+          reject(error);
 
           return;
         }
@@ -274,7 +278,7 @@ export class DomainService {
     });
   }
 
-  async verifySmtp(email: string, mxHost: string) : Promise<EmailStatusType> {
+  async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
     return new Promise((resolve, reject) => {
       const socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');

@@ -7,16 +7,25 @@ export type EmailResponseType = {
   domain_age_days?: number,
 }
 
+/** Possible email verification statuses */
 export enum EmailStatus {
+  /** The email is invalid (e.g., syntax issue) */
   INVALID = 'invalid',
+  /** The email is valid*/
   VALID = 'valid',
+  /** Domain does not exist or is unreachable */
   INVALID_DOMAIN = 'invalid_domain',
+  /** The domain accepts all emails without validation */
   CATCH_ALL = 'catch-all',
+  /** The email is a known spamtrap */
   SPAMTRAP = 'spamtrap',
-  UNKNOWN = 'unknown',
-  DO_NOT_MAIL = 'do_not_mail'
+  /** The email is flagged as do-not-mail */
+  DO_NOT_MAIL = 'do_not_mail',
+  /** The email status is not available */
+  UNKNOWN = 'unknown'
 }
 
+/** Reasons why an email might be considered invalid */
 export enum EmailReason {
   INVALID_EMAIL_FORMAT = 'invalid_email_format',
   DOMAIN_NOT_FOUND = 'domain_not_found',
