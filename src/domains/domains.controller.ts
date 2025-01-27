@@ -148,6 +148,7 @@ export class DomainsController {
   }
 
 
+  @SkipThrottle()
   @Post('upload')
   async uploadCsv(
     @Req() req: FastifyRequest,
