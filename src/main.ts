@@ -5,8 +5,8 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
+import multipart from '@fastify/multipart';
 import { ResponseSuccessInterceptor } from './common/interceptors/response-success.interceptor';
-import { ResponseErrorInterceptor } from './common/interceptors/response-error.interceptor';
 import { GlobalExceptionFilter } from './common/exception-filter/global-exception.filter';
 
 async function bootstrap() {
@@ -14,6 +14,9 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter(),
   );
+  // Register the multipart plugin
+  await app.register(multipart);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -26,9 +29,9 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(
     new ResponseSuccessInterceptor(),
-    // new ResponseErrorInterceptor(),
   );
   app.useGlobalFilters(new GlobalExceptionFilter());
+
   await app.listen(process.env.PORT ?? 3000);
 }
 

@@ -1,8 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller, HttpException, HttpStatus,
+  Post, Req,
+} from '@nestjs/common';
 import { DomainService } from './services/domain.service';
 import { CreateDomainDto } from './dto/create-domain.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Domain } from './entities/domain.entity';
 import { seconds, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { CATCH_ALL_EMAIL } from '../common/utility/constant';
@@ -10,6 +13,11 @@ import { EmailDto } from './dto/email.dto';
 import freeEmailProviderList from '../common/utility/free-email-provider-list';
 import { ErrorDomain } from './entities/error_domain.entity';
 import { EmailReason, EmailResponseType, EmailStatus, EmailStatusType } from '../common/utility/email-status-type';
+import { CsvUploadDto } from './dto/csv-upload.dto';
+import { FastifyRequest } from 'fastify';
+import { MultipartFile } from '@fastify/multipart';
+import { promises as fs } from 'fs';
+
 
 @Controller('email')
 export class DomainsController {
@@ -137,6 +145,44 @@ export class DomainsController {
       await this.domainService.createOrUpdateErrorDomain(errorDomain);
       return emailStatus;
     }
+  }
+
+
+  @Post('upload')
+  async uploadCsv(
+    @Req() req: FastifyRequest,
+    @Body() payload: any,
+  ) {
+
+    if (!req.isMultipart()) {
+      throw new HttpException(`Content-Type is not properly set.`, HttpStatus.NOT_ACCEPTABLE);
+    }  // add this
+    if (!req.file) {
+      throw new HttpException(`File is required`, HttpStatus.BAD_REQUEST);
+    }
+
+    const allowedFIleType = [
+      'text/csv',
+    ];
+    try {
+      const file = await req.file({ limits: { fileSize: 40 * 1024 * 1024 } });
+      if (!allowedFIleType.includes(file.mimetype)) {
+        throw new HttpException(`${file.filename} is not allowed!`, HttpStatus.NOT_ACCEPTABLE);
+      }
+      const buffer = await file.toBuffer();
+      await fs.writeFile(`./src/uploads/csv/${file.filename}`, buffer);
+      return {
+        message: 'File uploaded successfully!',
+        fileName: file.filename,
+        fileSize: buffer.length / (1024 * 1024),
+        payload,
+      };
+    } catch (e) {
+      throw new HttpException(e, HttpStatus.PAYLOAD_TOO_LARGE);
+
+    }
+
+
   }
 
   // @Get(':domain')
