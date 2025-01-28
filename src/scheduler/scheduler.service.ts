@@ -5,7 +5,15 @@ import { Cron } from '@nestjs/schedule';
 export class SchedulerService {
 
   private readonly logger = new Logger(SchedulerService.name);
-  @Cron('0 * * * * *')
+// * * * * * *
+// | | | | | |
+// | | | | | day of week
+// | | | | months
+// | | | day of month
+// | | hours
+// | minutes
+// seconds (optional)
+  @Cron('1 * * * * *')
   testSchedule() {
     this.logger.debug('Called when the current second is 45');
 
