@@ -11,9 +11,6 @@ export class CreateDomainDto {
   @IsNumber()
   readonly domain_age_days: number;
 
-  @IsJSON()
-  readonly domain_error: {};
-
   @IsString()
   readonly mx_record_host: string;
 }

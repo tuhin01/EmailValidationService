@@ -27,10 +27,9 @@ import { EmailRolesModule } from './email-roles/email-roles.module';
       synchronize: true,
     }),
     CommonModule,
-    DisposableDomainsModule,
-    EmailRolesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule {
+}

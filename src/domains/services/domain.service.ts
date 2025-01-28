@@ -12,7 +12,7 @@ import { DNSBL } from '../../common/utility/dnsbl';
 import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
 import {
-  CATCH_ALL_CHECK_DAY_GAP,
+  CATCH_ALL_CHECK_DAY_GAP, CATCH_ALL_EMAIL,
   ERROR_DOMAIN_CHECK_DAY_GAP,
   MX_RECORD_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
@@ -21,7 +21,18 @@ import { DisposableDomainsService } from '../../disposable-domains/disposable-do
 import { EmailRolesService } from '../../email-roles/email-roles.service';
 import { EmailRole } from '../../email-roles/entities/email-role.entity';
 import { ErrorDomain } from '../entities/error_domain.entity';
-import { EmailReason, EmailStatus, EmailStatusType } from '../../common/utility/email-status-type';
+import {
+  EmailReason,
+  EmailValidationResponseType,
+  EmailStatus,
+  EmailStatusType,
+  SMTPResponseCode,
+} from '../../common/utility/email-status-type';
+import * as csv from 'csv-parse';
+import { plainToInstance } from 'class-transformer';
+import { CsvUploadDto } from '../../common/dto/csv-upload.dto';
+import { validate } from 'class-validator';
+import freeEmailProviderList from '../../common/utility/free-email-provider-list';
 
 @Injectable()
 export class DomainService {
@@ -283,6 +294,7 @@ export class DomainService {
     return new Promise(async (resolve, reject) => {
       try {
         const isCatchAllValid: EmailStatusType = await this.verifySmtp(email, mxHost);
+        console.log({ isCatchAllValid });
         if (isCatchAllValid.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
             status: EmailStatus.CATCH_ALL,
@@ -294,6 +306,7 @@ export class DomainService {
         }
         resolve(true);
       } catch (e) {
+        console.log({ e });
         resolve(e);
       }
     });
@@ -304,10 +317,10 @@ export class DomainService {
       const socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
-
+      console.log({ email });
       const commands = [
         `EHLO ${mxHost}`,
-        `MAIL FROM: <tuhin.world@gmail.com>`,
+        `MAIL FROM: <${email}>`,
         `RCPT TO: <${email}>`,
       ];
 
@@ -318,15 +331,24 @@ export class DomainService {
       });
 
       socket.on('data', (data) => {
-        // console.log(data);
-        if (data.includes('250') && stage < commands.length) {
+        console.log(data);
+        const responseCode: number = parseInt(data.toString().substring(0, 3));
+        console.log({ responseCode });
+        if (responseCode === SMTPResponseCode.TWO_50.smtp_code && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
-        } else if (data.includes('550')) {
+        } else if (responseCode === SMTPResponseCode.FIVE_50.smtp_code) {
           this.closeSmtpConnection(socket);
-          const error: EmailStatusType = {
-            status: EmailStatus.INVALID,
-            reason: EmailReason.MAILBOX_NOT_FOUND,
-          };
+          const error: EmailStatusType = SMTPResponseCode.FIVE_50;
+          reject(error);
+          return;
+        } else if (responseCode === SMTPResponseCode.FOUR_21.smtp_code) {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = SMTPResponseCode.FOUR_21;
+          reject(error);
+          return;
+        } else if (responseCode === SMTPResponseCode.FIVE_53.smtp_code) {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = SMTPResponseCode.FIVE_53;
           reject(error);
           return;
         } else if (stage === commands.length) {
@@ -337,7 +359,19 @@ export class DomainService {
           };
           resolve(smailStatus);
           return;
+        } else {
+          if (responseCode.toString().startsWith('4') || responseCode.toString().startsWith('5')) {
+            const smailStatus: EmailStatusType = {
+              status: EmailStatus.INVALID,
+              smtp_code: responseCode,
+              reason: EmailReason.MAILBOX_NOT_FOUND,
+              retry: responseCode.toString().startsWith('4'),
+            };
+            resolve(smailStatus);
+            return;
+          }
         }
+
       });
 
       socket.on('error', (err) => {
@@ -435,5 +469,173 @@ export class DomainService {
   private closeSmtpConnection(socket) {
     socket.write('QUIT\r\n');
     socket.end();
+  }
+
+  async validateCsvData(file): Promise<any> {
+    const csvContent = file;
+    const parsedData: any = await new Promise((resolve, reject) => {
+      csv.parse(csvContent, {
+        columns: true,
+        relax_quotes: true,
+        skip_empty_lines: true,
+        cast: true,
+      }, (err, records) => {
+        if (err) {
+          reject(err);
+          return { error: true, message: 'Unable to parse file' };
+        }
+        resolve(records);
+      });
+    });
+    const errors: string[] = [];
+    if (!parsedData.length) {
+      errors.push('Empty File Provided');
+      return { error: true, message: 'File Validation Failed', errorsArray: errors };
+    }
+    //validate All Rows
+    for await (const [index, rowData] of parsedData.entries()) {
+      const validationErrors = await this.validateFileRow(rowData);
+      if (validationErrors.length) {
+        return {
+          error: true,
+          message: `File Rows Validation Failed at row: ${index + 1} - ${validationErrors}`,
+        };
+      }
+    }
+    return { error: false };
+  }
+
+  async validateFileRow(rowData) {
+    const errors: string[] = [];
+    const csvDto = plainToInstance(CsvUploadDto, rowData);
+    const validationErrors = await validate(csvDto);
+    if (validationErrors.length > 0) {
+      validationErrors.forEach((error) => {
+        const { property, constraints } = error;
+        const errorMessage = `${property}: ${Object.values(constraints).join(', ')}`;
+        errors.push(errorMessage);
+      });
+    }
+    return errors;
+  }
+
+  async smtpValidation(email: string) {
+    const emailStatus: EmailValidationResponseType = {
+      email_address: email,
+    };
+    try {
+      // Step - 1 : Check email syntax validity
+      await this.validateEmailFormat(email);
+
+      // Get domain part from the email address
+      const [account, domain] = email.split('@');
+      emailStatus.account = account;
+      emailStatus.domain = domain;
+
+      // Query DB to check if domain found in error_domains
+      const dbErrorDomain: ErrorDomain = await this.findErrorDomain(domain);
+
+      // Query DB for existing domain check
+      let dbDomain: Domain = await this.findOne(domain);
+
+      // Check if domain is one of free email providers.
+      // If Yes - We SKIP,
+      // skip role based check,
+      // domain disposable check,
+      // black list check,
+      // domain typo check and
+      // catch-all domain check.
+      const isFreeEmailDomain = freeEmailProviderList.includes(domain);
+      emailStatus.free_email = isFreeEmailDomain;
+      if (!isFreeEmailDomain) {
+        // Step - 2 : Check email is role based
+        // Ex - contact@domain.com
+        // We mark these as 'role_based' as these emails might be valid but
+        // high chance of not getting any reply back.
+        await this.isRoleBasedEmail(email);
+
+        // Step - 3 : Check email is a temporary email
+        await this.isDisposableDomain(domain);
+
+        // Step - 4 : Check if the domain is one of DNSBL domain
+        // Hint - Domain Name System Blacklists, also known as DNSBL's or DNS Blacklists,
+        // are spam blocking lists. They allow a website administrator to block
+        // messages from specific systems that have a history of sending spam.
+        // These lists are based on the Internet's Domain Name System, or DNS.
+        await this.checkDomainSpamDatabaseList(domain);
+
+        // Step - 5 : Check if the domain name is very similar to another popular domain
+        // Usually these domains are used for spam or spam-trap.
+        await this.domainTypoCheck(domain);
+      }
+
+      // Step 7 : Get the MX records of the domain
+      const mxRecordHost: string =
+        await this.checkDomainMxRecords(domain, dbDomain);
+
+      // Save The domain if it is not already saved
+      if (!dbDomain) {
+        const createDomainDto: CreateDomainDto = {
+          domain,
+          domain_age_days: null,
+          mx_record_host: mxRecordHost,
+          domain_ip: '',
+        };
+        dbDomain = await this.create(createDomainDto);
+      }
+
+      if (!isFreeEmailDomain) {
+        // Step 8 : Check if the mail server smtpResponse 'ok' for an abnormal email that does not exist.
+        // This means the domain accepts any email address as valid
+        // We mark these as 'catch_all' as the email is valid but
+        // high chance of not getting any reply back.
+        const catchAllEmail = `${CATCH_ALL_EMAIL}@${domain}`;
+        await this.catchAllCheck(catchAllEmail, mxRecordHost);
+      }
+      // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
+      // If email exist then we can confirm the email is valid
+      const smtpResponse: EmailStatusType = await this.verifySmtp(email, mxRecordHost);
+      emailStatus.email_status = smtpResponse.status;
+      emailStatus.email_sub_status = smtpResponse.reason;
+
+      // Step - 6 : Check domain whois database to make sure everything is in good shape
+      if (smtpResponse.status === EmailStatus.VALID) {
+        const domainInfo: any = await this.getDomainAge(
+          domain,
+          dbDomain,
+        );
+        emailStatus.domain_age_days = domainInfo.domain_age_days;
+        dbDomain.domain_age_days = domainInfo.domain_age_days;
+        await dbDomain.save();
+      }
+
+      // If everything goes well, then return the emailStatus
+      return emailStatus;
+    } catch (error) {
+      emailStatus.email_status = error['status'];
+      emailStatus.email_sub_status = error['reason'];
+
+      // If the email is a free email OR Error reasons
+      // DO NOT confirm the domain has issues. Other emails
+      // from the same domain might be valid.
+      // So we do not save the domain into error_domains
+      const skipReasons = [
+        EmailReason.ROLE_BASED,
+        EmailReason.INVALID_EMAIL_FORMAT,
+        EmailReason.UNVERIFIABLE_EMAIL,
+        EmailReason.MAILBOX_NOT_FOUND,
+      ];
+      if (emailStatus.free_email || (error.reason && skipReasons.includes(error.reason))) {
+        return emailStatus;
+      }
+
+      const domain = email.split('@')[1];
+      const errorDomain: any = {
+        domain,
+        domain_error: error,
+      };
+      await this.createOrUpdateErrorDomain(errorDomain);
+      return emailStatus;
+    }
   }
 }

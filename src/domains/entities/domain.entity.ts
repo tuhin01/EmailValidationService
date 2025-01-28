@@ -20,7 +20,7 @@ export class Domain extends BaseEntity {
   @Column({ nullable: true, type: 'varchar', length: 64 })
   domain_ip: string;
 
-  @Column()
+  @Column({ nullable: true })
   domain_age_days: number;
 
   @Column()

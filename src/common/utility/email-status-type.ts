@@ -1,9 +1,10 @@
-export type EmailResponseType = {
+export type EmailValidationResponseType = {
   email_address: string,
   email_status?: string,
   email_sub_status?: string,
   account?: string,
   domain?: string,
+  free_email?: boolean,
   domain_age_days?: number,
 }
 
@@ -22,7 +23,7 @@ export enum EmailStatus {
   /** The email is flagged as do-not-mail */
   DO_NOT_MAIL = 'do_not_mail',
   /** The email status is not available */
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 /** Reasons why an email might be considered invalid */
@@ -36,11 +37,41 @@ export enum EmailReason {
   DISPOSABLE_DOMAIN = 'disposable_domain_temporary_email',
   POSSIBLE_TYPO = 'possible_typo',
   MAILBOX_NOT_FOUND = 'mailbox_not_found',
+  UNVERIFIABLE_EMAIL = 'unverifiable_email',
   SMTP_TIMEOUT = 'smtp_connection_timeout',
   EMPTY = ''
 }
 
+export const SMTPResponseCode = {
+  TWO_50: {
+    smtp_code: 250,
+    status: EmailStatus.VALID,
+    reason: EmailReason.EMPTY,
+    retry: false,
+  },
+  FIVE_50: {
+    smtp_code: 550,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
+  FIVE_53: {
+    smtp_code: 553,
+    status: EmailStatus.UNKNOWN,
+    reason: EmailReason.UNVERIFIABLE_EMAIL,
+    retry: false,
+  },
+  FOUR_21: {
+    smtp_code: 421,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: true,
+  },
+};
+
 export type EmailStatusType = {
   status: EmailStatus;
   reason: EmailReason | string;
+  retry?: boolean;
+  smtp_code?: number;
 };
