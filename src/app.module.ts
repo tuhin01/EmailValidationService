@@ -9,6 +9,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerConfigService } from './common/config/throttler.config';
 import { DisposableDomainsModule } from './disposable-domains/disposable-domains.module';
 import { EmailRolesModule } from './email-roles/email-roles.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { EmailRolesModule } from './email-roles/email-roles.module';
       synchronize: true,
     }),
     CommonModule,
+    SchedulerModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
