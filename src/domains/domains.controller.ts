@@ -53,7 +53,7 @@ export class DomainsController {
             return;
           }
           for (const record of records) {
-            const emailResult = await this.domainService.smtpValidation(record.email);
+            const emailResult = await this.domainService.smtpValidation(record.Email);
             results.push(emailResult);
           }
           resolve(results);
