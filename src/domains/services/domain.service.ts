@@ -330,23 +330,23 @@ export class DomainService {
         socket.write(`${commands[stage++]}\r\n`);
       });
 
+      // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
+      // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         console.log(data);
-        const responseCode: number = parseInt(data.toString().substring(0, 3));
-        console.log({ responseCode });
-        if (responseCode === SMTPResponseCode.TWO_50.smtp_code && stage < commands.length) {
+        if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
-        } else if (responseCode === SMTPResponseCode.FIVE_50.smtp_code) {
+        } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FIVE_50;
           reject(error);
           return;
-        } else if (responseCode === SMTPResponseCode.FOUR_21.smtp_code) {
+        } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FOUR_21;
           reject(error);
           return;
-        } else if (responseCode === SMTPResponseCode.FIVE_53.smtp_code) {
+        } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FIVE_53;
           reject(error);
@@ -360,12 +360,17 @@ export class DomainService {
           resolve(smailStatus);
           return;
         } else {
-          if (responseCode.toString().startsWith('4') || responseCode.toString().startsWith('5')) {
+          const errorData = data.toString();
+          // When no other condition is true, handle it for all other codes
+          // Response code starts with "4" - Temporary error, and we should retry later
+          // Response code starts with "5" - Permanent error and must not retry
+          if (errorData.startsWith('4') || errorData.startsWith('5')) {
+            const responseCode: number = parseInt(errorData.substring(0, 3));
             const smailStatus: EmailStatusType = {
               status: EmailStatus.INVALID,
               smtp_code: responseCode,
               reason: EmailReason.MAILBOX_NOT_FOUND,
-              retry: responseCode.toString().startsWith('4'),
+              retry: errorData.startsWith('4'),
             };
             resolve(smailStatus);
             return;
