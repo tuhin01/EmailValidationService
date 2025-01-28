@@ -19,15 +19,17 @@ export class DomainsController {
   }
 
 
-  @Throttle({
-    default: { limit: 5, ttl: seconds(5), blockDuration: seconds(1) },
-  })
+  // @Throttle({
+  //   default: { limit: 5, ttl: seconds(5), blockDuration: seconds(1) },
+  // })
+  @SkipThrottle()
   @Post('validate')
   async validate(@Body() emailDto: EmailDto) {
     const { email } = emailDto;
     return await this.domainService.smtpValidation(email);
   }
 
+  @SkipThrottle()
   @Post('bulk-validate')
   async bulkValidate() {
     const results = [];

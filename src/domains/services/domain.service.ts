@@ -12,7 +12,8 @@ import { DNSBL } from '../../common/utility/dnsbl';
 import DomainTypoChecker from '../../common/utility/domain-typo-checker';
 import { differenceInDays } from 'date-fns';
 import {
-  CATCH_ALL_CHECK_DAY_GAP, CATCH_ALL_EMAIL,
+  CATCH_ALL_CHECK_DAY_GAP,
+  CATCH_ALL_EMAIL,
   ERROR_DOMAIN_CHECK_DAY_GAP,
   MX_RECORD_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
@@ -23,9 +24,9 @@ import { EmailRole } from '../../email-roles/entities/email-role.entity';
 import { ErrorDomain } from '../entities/error_domain.entity';
 import {
   EmailReason,
-  EmailValidationResponseType,
   EmailStatus,
   EmailStatusType,
+  EmailValidationResponseType,
   SMTPResponseCode,
 } from '../../common/utility/email-status-type';
 import * as csv from 'csv-parse';
@@ -306,7 +307,6 @@ export class DomainService {
         }
         resolve(true);
       } catch (e) {
-        console.log({ e });
         resolve(e);
       }
     });
@@ -327,6 +327,7 @@ export class DomainService {
       let stage = 0;
 
       socket.on('connect', () => {
+        console.log('Connect to the SMTP success');
         socket.write(`${commands[stage++]}\r\n`);
       });
 
@@ -376,11 +377,20 @@ export class DomainService {
             return;
           }
         }
+      });
 
+      socket.on('close', () => {
+        const error: EmailStatusType = {
+          status: EmailStatus.INVALID,
+          reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+        };
+        reject(error);
+        return;
       });
 
       socket.on('error', (err) => {
-        this.closeSmtpConnection(socket);
+        console.log(err);
+        // this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
           reason: err.message,
@@ -390,7 +400,7 @@ export class DomainService {
       });
 
       socket.on('timeout', () => {
-        this.closeSmtpConnection(socket);
+        // this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
           reason: EmailReason.SMTP_TIMEOUT,
@@ -472,8 +482,10 @@ export class DomainService {
   }
 
   private closeSmtpConnection(socket) {
-    socket.write('QUIT\r\n');
-    socket.end();
+    if (socket.readyState === 'open') {
+      socket.write('QUIT\r\n');
+      socket.end();
+    }
   }
 
   async validateCsvData(file): Promise<any> {
