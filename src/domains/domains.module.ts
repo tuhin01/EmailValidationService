@@ -7,10 +7,11 @@ import { DisposableDomainsService } from '../disposable-domains/disposable-domai
 import { DisposableDomainsModule } from '../disposable-domains/disposable-domains.module';
 import { EmailRolesModule } from '../email-roles/email-roles.module';
 import { ErrorDomain } from './entities/error_domain.entity';
+import { ProcessedEmail } from './entities/processed_email.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Domain, ErrorDomain]),
+    TypeOrmModule.forFeature([Domain, ErrorDomain, ProcessedEmail]),
     DisposableDomainsModule,
     EmailRolesModule,
   ],

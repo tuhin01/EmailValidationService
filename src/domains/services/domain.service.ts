@@ -15,7 +15,7 @@ import {
   CATCH_ALL_CHECK_DAY_GAP,
   CATCH_ALL_EMAIL,
   ERROR_DOMAIN_CHECK_DAY_GAP,
-  MX_RECORD_CHECK_DAY_GAP,
+  MX_RECORD_CHECK_DAY_GAP, PROCESSED_EMAIL_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
 } from '../../common/utility/constant';
 import { DisposableDomainsService } from '../../disposable-domains/disposable-domains.service';
@@ -34,6 +34,7 @@ import { plainToInstance } from 'class-transformer';
 import { CsvUploadDto } from '../../common/dto/csv-upload.dto';
 import { validate } from 'class-validator';
 import freeEmailProviderList from '../../common/utility/free-email-provider-list';
+import { ProcessedEmail } from '../entities/processed_email.entity';
 
 @Injectable()
 export class DomainService {
@@ -109,6 +110,33 @@ export class DomainService {
       }
       resolve(errorDomain);
     });
+  }
+
+  async saveProcessedEmail(processedEmail: EmailValidationResponseType) {
+    const existingDomain = await ProcessedEmail.findOneBy({
+      email_address: processedEmail.email_address,
+    });
+    if (!existingDomain) {
+      const dbProcessedEmail: ProcessedEmail = ProcessedEmail.create({ ...processedEmail });
+      return dbProcessedEmail.save();
+    }
+  }
+
+  async getProcessedEmail(email: string) {
+    const processedEmail: ProcessedEmail =
+      await ProcessedEmail.findOneBy({ email_address: email });
+    if (processedEmail) {
+      const dayPassedSinceLastMxCheck = differenceInDays(
+        new Date(),
+        processedEmail.created_at,
+      );
+      if (dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP) {
+        return processedEmail;
+      } else {
+        return null;
+      }
+    }
+    return null;
   }
 
   async create(createDomainDto: CreateDomainDto) {
@@ -540,6 +568,16 @@ export class DomainService {
     const emailStatus: EmailValidationResponseType = {
       email_address: email,
     };
+
+    // Check if we processed the email today.
+    // If we did then just return the previous result
+    const processedEmail: ProcessedEmail = await this.getProcessedEmail(email);
+    if (processedEmail) {
+      delete processedEmail.id;
+      delete processedEmail.created_at;
+      return { ...emailStatus, ...processedEmail };
+    }
+
     try {
       // Step - 1 : Check email syntax validity
       await this.validateEmailFormat(email);
@@ -626,12 +664,14 @@ export class DomainService {
         await dbDomain.save();
       }
 
+      await this.saveProcessedEmail(emailStatus);
       // If everything goes well, then return the emailStatus
       return emailStatus;
     } catch (error) {
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
-
+      emailStatus.free_email = freeEmailProviderList.includes(emailStatus.domain);
+      await this.saveProcessedEmail(emailStatus);
       // If the email is a free email OR Error reasons
       // DO NOT confirm the domain has issues. Other emails
       // from the same domain might be valid.
@@ -652,7 +692,9 @@ export class DomainService {
         domain_error: error,
       };
       await this.createOrUpdateErrorDomain(errorDomain);
+
       return emailStatus;
     }
   }
+
 }
