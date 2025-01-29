@@ -54,7 +54,7 @@ export class BulkFilesController {
         valid_email_count: null,
         catch_all_count: null,
         invalid_email_count: null,
-        do_not_email_count: null,
+        do_not_mail_count: null,
         unknown_count: null,
         spam_trap_count: null,
         validation_file_path: null

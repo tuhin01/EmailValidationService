@@ -20,7 +20,7 @@ export class CreateBulkFileDto {
 
   @IsString()
   @IsOptional()
-  do_not_email_count: number
+  do_not_mail_count: number
 
   @IsString()
   @IsOptional()

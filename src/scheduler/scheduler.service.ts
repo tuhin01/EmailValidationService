@@ -7,6 +7,8 @@ import { parse } from 'csv-parse';
 import { UpdateBulkFileDto } from '../bulk-files/dto/update-bulk-file.dto';
 import { BulkFileStatus } from '../bulk-files/entities/bulk-file.entity';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { EmailStatus, EmailValidationResponseType } from '../common/utility/email-status-type';
+import { CreateBulkFileDto } from '../bulk-files/dto/create-bulk-file.dto';
 
 @Injectable()
 export class SchedulerService {
@@ -29,21 +31,33 @@ export class SchedulerService {
     }
     const firstPendingFIle = pendingFiles[0];
     try {
-      console.log('Start');
       const processingStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.PROCESSING,
       };
       await this.bulkFilesService.updateBulkFile(firstPendingFIle.id, processingStatus);
-      console.log('File Status updated to - PROCESSING');
 
       const results = await this.bulkValidate((firstPendingFIle.file_path));
-      console.log(results);
+
       const fileName = firstPendingFIle.id + randomStringGenerator() + '.csv';
       const savedPath = await this.bulkFilesService.generateCsv(results, fileName);
-      console.log(savedPath);
+
+      const {
+        valid_email_count,
+        invalid_email_count,
+        unknown_count,
+        catch_all_count,
+        do_not_mail_count,
+        spam_trap_count,
+      } = this.prepareValidationResult(results);
       const completeStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.COMPLETE,
         validation_file_path: savedPath,
+        valid_email_count,
+        invalid_email_count,
+        unknown_count,
+        catch_all_count,
+        do_not_mail_count,
+        spam_trap_count,
       };
       await this.bulkFilesService.updateBulkFile(firstPendingFIle.id, completeStatus);
       console.log('File Status updated to - COMPLETE');
@@ -52,6 +66,43 @@ export class SchedulerService {
       console.log(e);
     }
 
+  }
+
+  prepareValidationResult(emails) {
+    const result = {
+      valid_email_count: 0,
+      invalid_email_count: 0,
+      spam_trap_count: 0,
+      unknown_count: 0,
+      catch_all_count: 0,
+      do_not_mail_count: 0,
+    };
+
+    emails.forEach((email: EmailValidationResponseType) => {
+      if (email.email_status === EmailStatus.VALID) {
+        result.valid_email_count++;
+      }
+      if (
+        email.email_status === EmailStatus.INVALID ||
+        email.email_status === EmailStatus.INVALID_DOMAIN
+      ) {
+        result.invalid_email_count++;
+      }
+      if (email.email_status === EmailStatus.CATCH_ALL) {
+        result.catch_all_count++;
+      }
+      if (email.email_status === EmailStatus.UNKNOWN) {
+        result.unknown_count++;
+      }
+      if (email.email_status === EmailStatus.SPAMTRAP) {
+        result.spam_trap_count++;
+      }
+      if (email.email_status === EmailStatus.DO_NOT_MAIL) {
+        result.do_not_mail_count++;
+      }
+    });
+
+    return result;
   }
 
   async bulkValidate(csvPath: string): Promise<any[]> {
