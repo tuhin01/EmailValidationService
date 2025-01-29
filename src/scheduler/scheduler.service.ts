@@ -68,7 +68,7 @@ export class SchedulerService {
 
   }
 
-  prepareValidationResult(emails) {
+  prepareValidationResult(emails: EmailValidationResponseType[]) {
     const result = {
       valid_email_count: 0,
       invalid_email_count: 0,
