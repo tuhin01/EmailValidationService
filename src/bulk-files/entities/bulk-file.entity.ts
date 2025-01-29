@@ -21,9 +21,11 @@ export class BulkFile extends BaseEntity {
   @Column({ type: 'varchar', length: 255 })
   file_path: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  validation_file_path: string;
+
   @Column({ type: 'enum', enum: BulkFileStatus, default: BulkFileStatus.PENDING })
   file_status: BulkFileStatus;
-
 
   @Column({ type: 'int' })
   total_email_count: number;

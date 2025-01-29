@@ -17,6 +17,7 @@ import { ProcessedEmail } from './entities/processed_email.entity';
   ],
   controllers: [DomainsController],
   providers: [DomainService],
+  exports: [DomainService]
 })
 export class DomainsModule {
 }

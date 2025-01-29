@@ -8,6 +8,7 @@ import { BulkFile } from './entities/bulk-file.entity';
   imports: [TypeOrmModule.forFeature([BulkFile])],
   controllers: [BulkFilesController],
   providers: [BulkFilesService],
+  exports: [BulkFilesService],
 })
 export class BulkFilesModule {
 }

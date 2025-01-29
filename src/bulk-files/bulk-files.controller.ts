@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Req, HttpException, HttpStatus } from '@nestjs/common';
+import { Body, Controller, HttpException, HttpStatus, Post, Req } from '@nestjs/common';
 import { BulkFilesService } from './bulk-files.service';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
 import { SkipThrottle } from '@nestjs/throttler';
 import { FastifyRequest } from 'fastify';
 import * as fs from 'node:fs';
+import { BulkFileStatus } from './entities/bulk-file.entity';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 
 @Controller('bulk-files')
 export class BulkFilesController {
@@ -38,16 +40,24 @@ export class BulkFilesController {
       if (isValid.error) {
         throw new HttpException(isValid, HttpStatus.BAD_REQUEST);
       }
-
-      const csvSavePath = `./uploads/csv/${file.filename}`;
+      const fileName = randomStringGenerator() + '.csv'
+      const csvSavePath = `./uploads/csv/${fileName}`;
       fs.writeFile(csvSavePath, buffer, (err) => {
         console.log(err);
       });
 
-      // After saving the file locally, save it's location in DB
+      // After saving the file locally, saveBulkFile it's location in DB
       const bulkFile: CreateBulkFileDto = {
         file_path: csvSavePath,
         total_email_count: isValid.total_emails,
+        file_status: BulkFileStatus.PENDING,
+        valid_email_count: null,
+        catch_all_count: null,
+        invalid_email_count: null,
+        do_not_email_count: null,
+        unknown_count: null,
+        spam_trap_count: null,
+        validation_file_path: null
       };
       await this.bulkFilesService.saveBulkFile(bulkFile);
 

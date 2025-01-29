@@ -29,10 +29,6 @@ import {
   EmailValidationResponseType,
   SMTPResponseCode,
 } from '../../common/utility/email-status-type';
-import * as csv from 'csv-parse';
-import { plainToInstance } from 'class-transformer';
-import { CsvUploadDto } from '../../common/dto/csv-upload.dto';
-import { validate } from 'class-validator';
 import freeEmailProviderList from '../../common/utility/free-email-provider-list';
 import { ProcessedEmail } from '../entities/processed_email.entity';
 
@@ -266,7 +262,7 @@ export class DomainService {
     dbDomain: Domain,
   ): Promise<string> {
     return new Promise(async (resolve, reject) => {
-      // Check if mx record save time is pass 30 days or not.
+      // Check if mx record saveBulkFile time is pass 30 days or not.
       // If yes - then revalidate mx records to make sure it is still valid
       // If not - then continue using it
       if (dbDomain) {
@@ -678,11 +674,20 @@ export class DomainService {
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
       emailStatus.free_email = freeEmailProviderList.includes(emailStatus.domain);
+
+      await this.saveProcessedErrorEmail(emailStatus, error, email)
+
+      return emailStatus;
+    }
+  }
+
+  async saveProcessedErrorEmail(emailStatus: EmailValidationResponseType, error, email: string) {
+    try {
       await this.saveProcessedEmail(emailStatus);
       // If the email is a free email OR Error reasons
       // DO NOT confirm the domain has issues. Other emails
       // from the same domain might be valid.
-      // So we do not save the domain into error_domains
+      // So we do not saveBulkFile the domain into error_domains
       const skipReasons = [
         EmailReason.ROLE_BASED,
         EmailReason.INVALID_EMAIL_FORMAT,
@@ -699,8 +704,8 @@ export class DomainService {
         domain_error: error,
       };
       await this.createOrUpdateErrorDomain(errorDomain);
-
-      return emailStatus;
+    } catch (e) {
+      return e;
     }
   }
 

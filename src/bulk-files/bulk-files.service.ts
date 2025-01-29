@@ -1,19 +1,61 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from './dto/update-bulk-file.dto';
 import * as csv from 'csv-parse';
 import { plainToInstance } from 'class-transformer';
 import { CsvUploadDto } from '../common/dto/csv-upload.dto';
 import { validate } from 'class-validator';
-import { EmailValidationResponseType } from '../common/utility/email-status-type';
-import { ProcessedEmail } from '../domains/entities/processed_email.entity';
-import { BulkFile } from './entities/bulk-file.entity';
+import { BulkFile, BulkFileStatus } from './entities/bulk-file.entity';
+import { stringify } from 'csv-stringify/sync';
+import * as fs from 'node:fs';
+
 
 @Injectable()
 export class BulkFilesService {
+
+  async getPendingBulkFile() {
+    return await BulkFile.findBy({ file_status: BulkFileStatus.PENDING });
+  }
+
   async saveBulkFile(createBulkFileDto: CreateBulkFileDto) {
     const bulkFile: BulkFile = BulkFile.create({ ...createBulkFileDto });
     return bulkFile.save();
+  }
+
+  async updateBulkFile(id: number, updateBulkFileDto: UpdateBulkFileDto) {
+    try {
+      const bulkFile: BulkFile = await BulkFile.findOneBy({ id });
+      const updateData = { ...bulkFile, ...updateBulkFileDto };
+
+      await BulkFile.update(id, updateData);
+      return updateData;
+    } catch (e) {
+      throw new HttpException(e, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  async generateCsv(data: any[], fileName) {
+    // Define the CSV headers
+    const headers = [
+      'email_address',
+      'account',
+      'domain',
+      'email_status',
+      'email_sub_status',
+      'domain_age_days',
+      'free_email',
+    ];
+
+    // Convert the array of objects to CSV
+    const csv = stringify(data, {
+      header: true,
+      columns: headers,
+    });
+    const csvSavePath = `./uploads/csv/validated/${fileName}`;
+    fs.writeFile(csvSavePath, csv, (err) => {
+      console.log(err);
+    });
+    return csvSavePath;
   }
 
   async validateCsvData(file): Promise<any> {
