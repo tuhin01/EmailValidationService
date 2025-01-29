@@ -6,8 +6,11 @@ import { plainToInstance } from 'class-transformer';
 import { CsvUploadDto } from '../common/dto/csv-upload.dto';
 import { validate } from 'class-validator';
 import { BulkFile, BulkFileStatus } from './entities/bulk-file.entity';
-import { stringify } from 'csv-stringify/sync';
+import { stringify } from 'csv-stringify';
 import * as fs from 'node:fs';
+import * as path from 'path';
+import { promisify } from 'util';
+const writeFileAsync = promisify(fs.writeFile);
 
 
 @Injectable()
@@ -34,29 +37,92 @@ export class BulkFilesService {
     }
   }
 
-  async generateCsv(data: any[], fileName) {
-    // Define the CSV headers
-    const headers = [
-      'email_address',
-      'account',
-      'domain',
-      'email_status',
-      'email_sub_status',
-      'domain_age_days',
-      'free_email',
+  async generateCsv(data: any[], fileName: string) {
+    // Define the CSV headers with proper titles
+    const columns = [
+      { key: 'email_address', header: 'Email Address' },
+      { key: 'account', header: 'Account' },
+      { key: 'domain', header: 'Domain' },
+      { key: 'email_status', header: 'Email Status' },
+      { key: 'email_sub_status', header: 'Email Sub Status' },
+      { key: 'domain_age_days', header: 'Domain Age Days' },
+      { key: 'free_email', header: 'Free Email' },
     ];
 
     // Convert the array of objects to CSV
-    const csv = stringify(data, {
-      header: true,
-      columns: headers,
+    return new Promise<string>((resolve, reject) => {
+      stringify(data, { header: true, columns }, async (err, csv) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Define CSV file save path
+        // const csvSavePath = path.join(__dirname, '..', 'uploads', 'csv', 'validated', fileName);
+        const csvSavePath = `./uploads/csv/validated/${fileName}`;
+        // Ensure directory exists
+        fs.mkdirSync(path.dirname(csvSavePath), { recursive: true });
+
+        try {
+          await writeFileAsync(csvSavePath, csv);
+          resolve(csvSavePath);
+        } catch (writeErr) {
+          reject(writeErr);
+        }
+      });
     });
-    const csvSavePath = `./uploads/csv/validated/${fileName}`;
-    fs.writeFile(csvSavePath, csv, (err) => {
-      console.log(err);
-    });
-    return csvSavePath;
   }
+
+  // async generateCsv(data: any[], fileName: string): Promise<string> {
+  //   // Define the CSV headers
+  //   const columns = [
+  //     { key: 'email_address', header: 'Email Address' },
+  //     { key: 'account', header: 'Account' },
+  //     { key: 'domain', header: 'Domain' },
+  //     { key: 'email_status', header: 'Email Status' },
+  //     { key: 'email_sub_status', header: 'Email Sub Status' },
+  //     { key: 'domain_age_days', header: 'Domain Age Days' },
+  //     { key: 'free_email', header: 'Free Email' },
+  //   ];
+  //
+  //   // Convert JSON data to CSV
+  //   const csv = stringify(data, { header: true, columns });
+  //
+  //   // Define CSV file save path
+  //   const csvSavePath = path.join(__dirname, '..', 'uploads', 'csv', 'validated', fileName);
+  //
+  //   // Ensure directory exists
+  //   fs.mkdirSync(path.dirname(csvSavePath), { recursive: true });
+  //
+  //   // Write CSV to file
+  //   await fs.promises.writeFile(csvSavePath, csv, 'utf8');
+  //
+  //   return csvSavePath;
+  // }
+
+  // async generateCsv(data: any[], fileName) {
+  //   // Define the CSV headers
+  //   const headers = [
+  //     'email_address',
+  //     'account',
+  //     'domain',
+  //     'email_status',
+  //     'email_sub_status',
+  //     'domain_age_days',
+  //     'free_email',
+  //   ];
+  //
+  //   // Convert the array of objects to CSV
+  //   const csv = stringify(data, {
+  //     header: true,
+  //     columns: headers,
+  //   });
+  //   const csvSavePath = `./uploads/csv/validated/${fileName}`;
+  //   fs.writeFile(csvSavePath, csv, (err) => {
+  //     console.log(err);
+  //   });
+  //   return csvSavePath;
+  // }
 
   async validateCsvData(file): Promise<any> {
     const csvContent = file;
