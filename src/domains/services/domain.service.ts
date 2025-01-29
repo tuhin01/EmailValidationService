@@ -355,57 +355,112 @@ export class DomainService {
       let stage = 0;
 
       socket.on('connect', () => {
-        console.log('Connect to the SMTP success');
         socket.write(`${commands[stage++]}\r\n`);
       });
 
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       // Parse the SMTP response based on response code listed above
+      // socket.on('data', (data) => {
+      //   console.log(data);
+      //   if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
+      //     socket.write(`${commands[stage++]}\r\n`);
+      //   } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
+      //     this.closeSmtpConnection(socket);
+      //     const error: EmailStatusType = SMTPResponseCode.FIVE_50;
+      //     reject(error);
+      //     return;
+      //   } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
+      //     this.closeSmtpConnection(socket);
+      //     const error: EmailStatusType = SMTPResponseCode.FOUR_21;
+      //     reject(error);
+      //     return;
+      //   } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
+      //     this.closeSmtpConnection(socket);
+      //     const error: EmailStatusType = SMTPResponseCode.FIVE_53;
+      //     reject(error);
+      //     return;
+      //   } else if (stage === commands.length) {
+      //     this.closeSmtpConnection(socket);
+      //     const smailStatus: EmailStatusType = {
+      //       status: EmailStatus.VALID,
+      //       reason: EmailReason.EMPTY,
+      //     };
+      //     resolve(smailStatus);
+      //     return;
+      //   } else {
+      //     const errorData = data.toString();
+      //     // When no other condition is true, handle it for all other codes
+      //     // Response code starts with "4" - Temporary error, and we should retry later
+      //     // Response code starts with "5" - Permanent error and must not retry
+      //     if (errorData.startsWith('4') || errorData.startsWith('5')) {
+      //       const responseCode: number = parseInt(errorData.substring(0, 3));
+      //       const smailStatus: EmailStatusType = {
+      //         status: EmailStatus.INVALID,
+      //         smtp_code: responseCode,
+      //         reason: EmailReason.MAILBOX_NOT_FOUND,
+      //         retry: errorData.startsWith('4'),
+      //       };
+      //       resolve(smailStatus);
+      //       return;
+      //     }
+      //   }
+      // });
+
       socket.on('data', (data) => {
         console.log(data);
-        if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
+        const dataStr = data.toString();
+
+        // Function to handle errors and close the connection
+        const handleError = (errorType: EmailStatusType) => {
+          this.closeSmtpConnection(socket);
+          reject(errorType);
+        };
+
+        if (dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
-        } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FIVE_50;
-          reject(error);
           return;
-        } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FOUR_21;
-          reject(error);
-          return;
-        } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FIVE_53;
-          reject(error);
-          return;
-        } else if (stage === commands.length) {
-          this.closeSmtpConnection(socket);
-          const smailStatus: EmailStatusType = {
-            status: EmailStatus.VALID,
-            reason: EmailReason.EMPTY,
-          };
-          resolve(smailStatus);
-          return;
-        } else {
-          const errorData = data.toString();
-          // When no other condition is true, handle it for all other codes
-          // Response code starts with "4" - Temporary error, and we should retry later
-          // Response code starts with "5" - Permanent error and must not retry
-          if (errorData.startsWith('4') || errorData.startsWith('5')) {
-            const responseCode: number = parseInt(errorData.substring(0, 3));
-            const smailStatus: EmailStatusType = {
-              status: EmailStatus.INVALID,
-              smtp_code: responseCode,
-              reason: EmailReason.MAILBOX_NOT_FOUND,
-              retry: errorData.startsWith('4'),
-            };
-            resolve(smailStatus);
+        }
+
+        // Handle specific SMTP error codes
+        const smtpErrors: Record<string, EmailStatusType> = {
+          [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
+          [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
+          [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
+        };
+
+        for (const [code, errorType] of Object.entries(smtpErrors)) {
+          if (dataStr.includes(code)) {
+            handleError(errorType);
             return;
           }
         }
+
+        // If all commands have been processed successfully
+        if (stage === commands.length) {
+          this.closeSmtpConnection(socket);
+          resolve({
+            status: EmailStatus.VALID,
+            reason: EmailReason.EMPTY,
+          });
+          return;
+        }
+
+        // General Error Handling for 4xx and 5xx Responses
+        const smtpErrorRegex = /^([45]\d{2})/;
+        const match = dataStr.match(smtpErrorRegex);
+        if (match) {
+          const responseCode = parseInt(match[1], 10);
+          const isTemporaryError = responseCode >= 400 && responseCode < 500;
+
+          resolve({
+            status: EmailStatus.INVALID,
+            smtp_code: responseCode,
+            reason: EmailReason.MAILBOX_NOT_FOUND,
+            retry: isTemporaryError,
+          });
+        }
       });
+
 
       socket.on('close', () => {
         const error: EmailStatusType = {
@@ -418,7 +473,7 @@ export class DomainService {
 
       socket.on('error', (err) => {
         console.log(err);
-        // this.closeSmtpConnection(socket);
+        this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
           reason: err.message,
@@ -428,7 +483,7 @@ export class DomainService {
       });
 
       socket.on('timeout', () => {
-        // this.closeSmtpConnection(socket);
+        this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
           reason: EmailReason.SMTP_TIMEOUT,
@@ -538,6 +593,7 @@ export class DomainService {
       return { error: true, message: 'File Validation Failed', errorsArray: errors };
     }
     //validate All Rows
+    let rowCount = 0;
     for await (const [index, rowData] of parsedData.entries()) {
       const validationErrors = await this.validateFileRow(rowData);
       if (validationErrors.length) {
@@ -546,8 +602,9 @@ export class DomainService {
           message: `File Rows Validation Failed at row: ${index + 1} - ${validationErrors}`,
         };
       }
+      rowCount++;
     }
-    return { error: false };
+    return { error: false, total_emails: rowCount };
   }
 
   async validateFileRow(rowData) {

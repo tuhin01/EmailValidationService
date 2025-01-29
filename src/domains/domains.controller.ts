@@ -87,17 +87,20 @@ export class DomainsController {
 
       const buffer = await file.toBuffer();
       const isValid = await this.domainService.validateCsvData(buffer);
+
       if (isValid.error) {
         throw new HttpException(isValid, HttpStatus.BAD_REQUEST);
       }
+
       const csvSavePath = `./uploads/csv/${file.filename}`;
       fs.writeFile(csvSavePath, buffer, (err) => {
         console.log(err);
       });
+
       return {
         message: 'File uploaded successfully!',
         fileName: file.filename,
-        fileSize: buffer.length / (1024 * 1024),
+        total_emails: isValid.total_emails,
       };
     } catch (e) {
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
