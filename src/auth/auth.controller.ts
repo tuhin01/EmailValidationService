@@ -3,6 +3,7 @@ import { AuthPayloadDto } from './dto/auth.dto';
 import { AuthService } from './auth.service';
 import { LocalGuard } from './guards/local.guard';
 import { JwtAuthGuard } from './guards/jwt.guard';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -11,8 +12,13 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(LocalGuard)
-  login(@Req() req: any) {
+  login(@Req() req: any, @Body() authDto: AuthPayloadDto) {
     return req.user;
+  }
+
+  @Post('register')
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Get('status')
