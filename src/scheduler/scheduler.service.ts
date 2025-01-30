@@ -22,7 +22,7 @@ export class SchedulerService {
   }
 
   @Cron('1 * * * * *')
-  async runFileEmailValidation() {
+  public async runFileEmailValidation() {
     this.logger.debug('Called every min');
     const pendingFiles = await this.bulkFilesService.getPendingBulkFile();
     console.log({ pendingFiles });
@@ -36,7 +36,7 @@ export class SchedulerService {
       };
       await this.bulkFilesService.updateBulkFile(firstPendingFIle.id, processingStatus);
 
-      const results = await this.bulkValidate((firstPendingFIle.file_path));
+      const results = await this.__bulkValidate((firstPendingFIle.file_path));
 
       const fileName = firstPendingFIle.id + randomStringGenerator() + '.csv';
       const savedPath = await this.bulkFilesService.generateCsv(results, fileName);
@@ -48,7 +48,7 @@ export class SchedulerService {
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
-      } = this.prepareValidationResult(results);
+      } = this.__prepareValidationResult(results);
       const completeStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.COMPLETE,
         validation_file_path: savedPath,
@@ -68,7 +68,7 @@ export class SchedulerService {
 
   }
 
-  prepareValidationResult(emails: EmailValidationResponseType[]) {
+  private __prepareValidationResult(emails: EmailValidationResponseType[]) {
     const result = {
       valid_email_count: 0,
       invalid_email_count: 0,
@@ -105,7 +105,7 @@ export class SchedulerService {
     return result;
   }
 
-  async bulkValidate(csvPath: string): Promise<any[]> {
+  private async __bulkValidate(csvPath: string): Promise<any[]> {
     const results: any[] = [];
     return new Promise((resolve, reject) => {
       if (!csvPath) {

@@ -9,6 +9,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerConfigService } from './common/config/throttler.config';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { BulkFilesModule } from './bulk-files/bulk-files.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { BulkFilesModule } from './bulk-files/bulk-files.module';
     CommonModule,
     SchedulerModule,
     BulkFilesModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
