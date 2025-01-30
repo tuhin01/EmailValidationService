@@ -20,7 +20,8 @@ export class AuthService {
     if (!user) {
       return null;
     }
-    if (user && (await bcrypt.compare(authPayloadDto.password, user.password))) {
+    const matchedPassword = await bcrypt.compare(authPayloadDto.password, user.password);
+    if (matchedPassword) {
       delete user.password;
       return this.jwtService.sign({ ...user });
     }
