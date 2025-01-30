@@ -6,11 +6,14 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
-    super();
+    super({
+      usernameField: 'email_address',
+    });
   }
 
-  validate(username: string, password: string) {
-    const user = this.authService.validateUser({ username, password });
+  validate(email_address: string, password: string) {
+    console.log(email_address);
+    const user = this.authService.validateUser({ email_address, password });
     if (!user) throw new UnauthorizedException('Username or password is incorrect');
     return user;
   }

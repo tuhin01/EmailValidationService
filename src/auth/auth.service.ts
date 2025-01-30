@@ -7,7 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 const fakeUsers = [
   {
     id: 1,
-    username: 'anson',
+    username: 'anson@gmail.com',
     password: 'password',
   },
   {
@@ -26,8 +26,9 @@ export class AuthService {
     return this.userService.create(registerDto);
   }
 
-  async validateUser({ username, password }: AuthPayloadDto) {
-    const findUser = fakeUsers.find((user) => user.username === username);
+  async validateUser({ email_address, password }: AuthPayloadDto) {
+    console.log(email_address);
+    const findUser = fakeUsers.find((user) => user.username === email_address);
     if (!findUser) return null;
     const user = this.userService.findAll();
     console.log(user);
