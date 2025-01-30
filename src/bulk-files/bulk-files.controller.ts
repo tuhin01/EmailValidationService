@@ -1,4 +1,4 @@
-import { Body, Controller, HttpException, HttpStatus, Post, Req } from '@nestjs/common';
+import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { BulkFilesService } from './bulk-files.service';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -6,6 +6,7 @@ import { FastifyRequest } from 'fastify';
 import * as fs from 'node:fs';
 import { BulkFileStatus } from './entities/bulk-file.entity';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 @Controller('bulk-files')
 export class BulkFilesController {
@@ -13,6 +14,7 @@ export class BulkFilesController {
   }
 
   @SkipThrottle()
+  @UseGuards(JwtAuthGuard)
   @Post('upload')
   async uploadCsv(
     @Req() req: FastifyRequest,
@@ -40,7 +42,7 @@ export class BulkFilesController {
       if (isValid.error) {
         throw new HttpException(isValid, HttpStatus.BAD_REQUEST);
       }
-      const fileName = randomStringGenerator() + '.csv'
+      const fileName = randomStringGenerator() + '.csv';
       const csvSavePath = `./uploads/csv/${fileName}`;
       fs.writeFile(csvSavePath, buffer, (err) => {
         console.log(err);
@@ -57,7 +59,7 @@ export class BulkFilesController {
         do_not_mail_count: null,
         unknown_count: null,
         spam_trap_count: null,
-        validation_file_path: null
+        validation_file_path: null,
       };
       await this.bulkFilesService.saveBulkFile(bulkFile);
 
