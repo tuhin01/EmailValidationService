@@ -66,24 +66,5 @@ echo "💾 Saving iptables rules..."
 sudo iptables-save | sudo tee /etc/iptables.rules
 echo "@reboot iptables-restore < /etc/iptables.rules" | sudo crontab -
 
-# 🔹 Install NGINX and Configure Proxy for NestJS
-echo "🛠 Installing NGINX..."
-sudo apt update && sudo apt install -y nginx
-
-echo "🛠 Configuring NGINX for NestJS..."
-sudo tee /etc/nginx/sites-available/nestjs > /dev/null <<EOT
-server {
-    listen 80;
-
-    location / {
-        proxy_pass http://$IP1:3000;
-        proxy_pass http://$IP2:3001;
-    }
-}
-EOT
-
-sudo ln -s /etc/nginx/sites-available/nestjs /etc/nginx/sites-enabled/
-sudo systemctl restart nginx
-
 # 🔹 Setup NestJS to Listen on Multiple IPs
 echo "🛠 DONE!!"
