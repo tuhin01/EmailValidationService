@@ -17,7 +17,10 @@ export class UsersService {
     const hashedPassword = await bcrypt.hash(registerDto.password, salt);
 
     const user: User = User.create({ ...registerDto, password: hashedPassword });
-    return user.save();
+    const dbUser = await user.save();
+    delete dbUser.password;
+    return dbUser;
+
   }
 
   findAll() {

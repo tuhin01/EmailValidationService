@@ -14,7 +14,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = host.switchToHttp().getResponse();
     const request = ctx.getRequest();
-    console.log(exception);
     const statusCode =
       exception instanceof HttpException
         ? exception.getStatus()

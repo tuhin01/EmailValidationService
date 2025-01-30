@@ -12,7 +12,7 @@ export class AuthController {
 
   @Post('login')
   @UseGuards(LocalGuard)
-  login(@Req() req: any, @Body() authDto: AuthPayloadDto) {
+  login(@Req() req: any) {
     return { auth_token: req.user };
   }
 
