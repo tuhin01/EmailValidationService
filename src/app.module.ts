@@ -10,6 +10,7 @@ import { ThrottlerConfigService } from './common/config/throttler.config';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { BulkFilesModule } from './bulk-files/bulk-files.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AuthModule } from './auth/auth.module';
     SchedulerModule,
     BulkFilesModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
