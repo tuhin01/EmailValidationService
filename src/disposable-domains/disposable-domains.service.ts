@@ -1,9 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { Domain } from '../domains/entities/domain.entity';
 import { CreateDisposableDomainDto } from './dto/create-disposable-domain.dto';
-import { UpdateDisposableDomainDto } from './dto/update-disposable-domain.dto';
 import { DisposableDomain } from './entities/disposable-domain.entity';
 
 @Injectable()

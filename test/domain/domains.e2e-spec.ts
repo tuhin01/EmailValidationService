@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
-import { DomainsModule } from '../../src/domains/domains.module';
+import { DomainsModule } from '@/domains/domains.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ResponseSuccessInterceptor } from '../../src/common/interceptors/response-success.interceptor';
-import { ResponseErrorInterceptor } from '../../src/common/interceptors/response-error.interceptor';
+import { ResponseSuccessInterceptor } from '@/common/interceptors/response-success.interceptor';
+import { ResponseErrorInterceptor } from '@/common/interceptors/response-error.interceptor';
 import * as request from 'supertest';
-import { CreateDomainDto } from '../../src/domains/dto/create-domain.dto';
+import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { datasourceOptions } from '../../src/database/config/datasource.config';
+import { datasourceOptions } from '@/database/config/datasource.config';
 
 describe('AppController (e2e)', () => {
   const domain = {

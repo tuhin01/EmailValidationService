@@ -4,9 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('domains') // sql table name === 'domains'

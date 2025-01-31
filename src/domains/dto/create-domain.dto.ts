@@ -1,11 +1,4 @@
-import {
-  IsArray,
-  IsBoolean,
-  IsJSON,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateDomainDto {
   @IsString()

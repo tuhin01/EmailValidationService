@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { hours, minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
+import { minutes, Throttle } from '@nestjs/throttler';
 import { FastifyRequest } from 'fastify';
 
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';

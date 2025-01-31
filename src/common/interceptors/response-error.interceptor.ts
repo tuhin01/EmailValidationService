@@ -5,16 +5,9 @@ import {
   HttpStatus,
   Injectable,
   NestInterceptor,
-  RequestTimeoutException,
 } from '@nestjs/common';
 import { format } from 'date-fns';
-import {
-  catchError,
-  Observable,
-  throwError,
-  timeout,
-  TimeoutError,
-} from 'rxjs';
+import { catchError, Observable, throwError, timeout } from 'rxjs';
 
 export type ErrorResponse = {
   status: boolean;

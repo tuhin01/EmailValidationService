@@ -1,11 +1,8 @@
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { Injectable } from '@nestjs/common';
-import { ExecutionContext } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import {
-  days,
   hours,
   minutes,
-  seconds,
   ThrottlerModuleOptions,
   ThrottlerOptionsFactory,
 } from '@nestjs/throttler';

@@ -6,7 +6,6 @@ import { Cron } from '@nestjs/schedule';
 import { parse } from 'csv-parse';
 
 import { BulkFilesService } from '../bulk-files/bulk-files.service';
-import { CreateBulkFileDto } from '../bulk-files/dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from '../bulk-files/dto/update-bulk-file.dto';
 import { BulkFileStatus } from '../bulk-files/entities/bulk-file.entity';
 import {

@@ -1,17 +1,7 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { DisposableDomain } from '../disposable-domains/entities/disposable-domain.entity';
 import { CreateEmailRoleDto } from './dto/create-email-role.dto';
-import { UpdateEmailRoleDto } from './dto/update-email-role.dto';
 import { EmailRolesService } from './email-roles.service';
 
 @Controller('email-roles')
