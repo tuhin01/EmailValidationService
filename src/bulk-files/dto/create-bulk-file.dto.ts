@@ -8,38 +8,37 @@ export class CreateBulkFileDto {
 
   @IsNumber()
   @IsNotEmpty()
-  total_email_count: number
+  total_email_count: number;
 
   @IsString()
   @IsOptional()
-  file_status: BulkFileStatus
+  file_status: BulkFileStatus;
 
   @IsString()
   @IsOptional()
-  validation_file_path: string
+  validation_file_path: string;
 
   @IsString()
   @IsOptional()
-  do_not_mail_count: number
+  do_not_mail_count: number;
 
   @IsString()
   @IsOptional()
-  catch_all_count: number
+  catch_all_count: number;
 
   @IsString()
   @IsOptional()
-  unknown_count: number
+  unknown_count: number;
 
   @IsString()
   @IsOptional()
-  spam_trap_count: number
+  spam_trap_count: number;
 
   @IsString()
   @IsOptional()
-  invalid_email_count: number
+  invalid_email_count: number;
 
   @IsString()
   @IsOptional()
-  valid_email_count: number
-
+  valid_email_count: number;
 }

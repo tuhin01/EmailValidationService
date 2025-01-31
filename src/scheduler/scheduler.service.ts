@@ -7,19 +7,20 @@ import { parse } from 'csv-parse';
 import { UpdateBulkFileDto } from '../bulk-files/dto/update-bulk-file.dto';
 import { BulkFileStatus } from '../bulk-files/entities/bulk-file.entity';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
-import { EmailStatus, EmailValidationResponseType } from '../common/utility/email-status-type';
+import {
+  EmailStatus,
+  EmailValidationResponseType,
+} from '../common/utility/email-status-type';
 import { CreateBulkFileDto } from '../bulk-files/dto/create-bulk-file.dto';
 
 @Injectable()
 export class SchedulerService {
-
   private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
-  ) {
-  }
+  ) {}
 
   @Cron('1 * * * * *')
   public async runFileEmailValidation() {
@@ -34,12 +35,18 @@ export class SchedulerService {
       const processingStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.PROCESSING,
       };
-      await this.bulkFilesService.updateBulkFile(firstPendingFIle.id, processingStatus);
+      await this.bulkFilesService.updateBulkFile(
+        firstPendingFIle.id,
+        processingStatus,
+      );
 
-      const results = await this.__bulkValidate((firstPendingFIle.file_path));
+      const results = await this.__bulkValidate(firstPendingFIle.file_path);
 
       const fileName = firstPendingFIle.id + randomStringGenerator() + '.csv';
-      const savedPath = await this.bulkFilesService.generateCsv(results, fileName);
+      const savedPath = await this.bulkFilesService.generateCsv(
+        results,
+        fileName,
+      );
 
       const {
         valid_email_count,
@@ -59,13 +66,15 @@ export class SchedulerService {
         do_not_mail_count,
         spam_trap_count,
       };
-      await this.bulkFilesService.updateBulkFile(firstPendingFIle.id, completeStatus);
+      await this.bulkFilesService.updateBulkFile(
+        firstPendingFIle.id,
+        completeStatus,
+      );
       console.log('File Status updated to - COMPLETE');
       console.log('Done');
     } catch (e) {
       console.log(e);
     }
-
   }
 
   private __prepareValidationResult(emails: EmailValidationResponseType[]) {
@@ -120,24 +129,29 @@ export class SchedulerService {
         }
 
         // Parse the CSV content
-        parse(data, {
-          columns: true,  // Convert rows to objects using the first row as keys
-          skip_empty_lines: true,  // Ignore empty lines
-          trim: true,  // Trim spaces from values
-        }, async (err, records) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-          for (const record of records) {
-            const emailResult = await this.domainService.smtpValidation(record.Email);
-            console.log({ emailResult });
-            results.push(emailResult);
-          }
-          resolve(results);
-        });
+        parse(
+          data,
+          {
+            columns: true, // Convert rows to objects using the first row as keys
+            skip_empty_lines: true, // Ignore empty lines
+            trim: true, // Trim spaces from values
+          },
+          async (err, records) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            for (const record of records) {
+              const emailResult = await this.domainService.smtpValidation(
+                record.Email,
+              );
+              console.log({ emailResult });
+              results.push(emailResult);
+            }
+            resolve(results);
+          },
+        );
       });
     });
   }
-
 }

@@ -8,9 +8,7 @@ import { DataSource } from 'typeorm';
 
 @Injectable()
 export class EmailRolesService {
-  constructor(private dataSource: DataSource) {
-  }
-
+  constructor(private dataSource: DataSource) {}
 
   async createMany(createEmailRoleDtos: CreateEmailRoleDto[]) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -29,11 +27,9 @@ export class EmailRolesService {
     }
   }
 
-
   async findOne(role: string) {
     const existingRole = await EmailRole.findOneBy({ role });
 
     return existingRole;
   }
-
 }

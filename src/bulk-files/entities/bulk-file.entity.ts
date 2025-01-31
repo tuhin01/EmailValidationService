@@ -2,7 +2,8 @@ import {
   BaseEntity,
   Column,
   CreateDateColumn,
-  Entity, Index,
+  Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -10,7 +11,7 @@ export enum BulkFileStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',
   COMPLETE = 'complete',
-  DELETED = 'deleted'
+  DELETED = 'deleted',
 }
 
 @Entity('bulk_files') // sql table name === 'bulk_files'
@@ -24,7 +25,11 @@ export class BulkFile extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   validation_file_path: string;
 
-  @Column({ type: 'enum', enum: BulkFileStatus, default: BulkFileStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: BulkFileStatus,
+    default: BulkFileStatus.PENDING,
+  })
   file_status: BulkFileStatus;
 
   @Column({ type: 'int' })

@@ -30,5 +30,4 @@ export class DisposableDomainsController {
   findOne(@Param('domain') domain: string) {
     return this.disposableDomainsService.findByDomain(domain);
   }
-
 }

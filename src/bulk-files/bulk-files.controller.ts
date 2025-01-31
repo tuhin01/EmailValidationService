@@ -1,4 +1,12 @@
-import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { BulkFilesService } from './bulk-files.service';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
 import { hours, minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -10,32 +18,32 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 @Controller('bulk-files')
 export class BulkFilesController {
-  constructor(private readonly bulkFilesService: BulkFilesService) {
-  }
+  constructor(private readonly bulkFilesService: BulkFilesService) {}
 
   @Throttle({
     default: { limit: 500, ttl: minutes(1), blockDuration: minutes(1) },
   })
   @UseGuards(JwtAuthGuard)
   @Post('upload')
-  async uploadCsv(
-    @Req() req: FastifyRequest,
-    @Body() payload: any,
-  ) {
+  async uploadCsv(@Req() req: FastifyRequest, @Body() payload: any) {
     if (!req.isMultipart()) {
-      throw new HttpException(`Content-Type is not properly set.`, HttpStatus.NOT_ACCEPTABLE);
-    }  // add this
+      throw new HttpException(
+        `Content-Type is not properly set.`,
+        HttpStatus.NOT_ACCEPTABLE,
+      );
+    } // add this
     if (!req.file) {
       throw new HttpException(`File is required`, HttpStatus.BAD_REQUEST);
     }
 
-    const allowedFIleType = [
-      'text/csv',
-    ];
+    const allowedFIleType = ['text/csv'];
     try {
       const file = await req.file({ limits: { fileSize: 40 * 1024 * 1024 } });
       if (!allowedFIleType.includes(file.mimetype)) {
-        throw new HttpException(`${file.filename} is not allowed!`, HttpStatus.NOT_ACCEPTABLE);
+        throw new HttpException(
+          `${file.filename} is not allowed!`,
+          HttpStatus.NOT_ACCEPTABLE,
+        );
       }
 
       const buffer = await file.toBuffer();

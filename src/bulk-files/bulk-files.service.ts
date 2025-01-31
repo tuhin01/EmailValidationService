@@ -10,10 +10,8 @@ import { createObjectCsvWriter } from 'csv-writer';
 import * as fs from 'node:fs';
 import * as path from 'path';
 
-
 @Injectable()
 export class BulkFilesService {
-
   async getPendingBulkFile() {
     return await BulkFile.findBy({ file_status: BulkFileStatus.PENDING });
   }
@@ -34,7 +32,6 @@ export class BulkFilesService {
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
     }
   }
-
 
   async generateCsv(data: any[], filename: string): Promise<string> {
     // const filePath = path.join(__dirname, '..', 'uploads', filename);
@@ -65,23 +62,31 @@ export class BulkFilesService {
   async validateCsvData(file): Promise<any> {
     const csvContent = file;
     const parsedData: any = await new Promise((resolve, reject) => {
-      csv.parse(csvContent, {
-        columns: true,
-        relax_quotes: true,
-        skip_empty_lines: true,
-        cast: true,
-      }, (err, records) => {
-        if (err) {
-          reject(err);
-          return { error: true, message: 'Unable to parse file' };
-        }
-        resolve(records);
-      });
+      csv.parse(
+        csvContent,
+        {
+          columns: true,
+          relax_quotes: true,
+          skip_empty_lines: true,
+          cast: true,
+        },
+        (err, records) => {
+          if (err) {
+            reject(err);
+            return { error: true, message: 'Unable to parse file' };
+          }
+          resolve(records);
+        },
+      );
     });
     const errors: string[] = [];
     if (!parsedData.length) {
       errors.push('Empty File Provided');
-      return { error: true, message: 'File Validation Failed', errorsArray: errors };
+      return {
+        error: true,
+        message: 'File Validation Failed',
+        errorsArray: errors,
+      };
     }
     //validate All Rows
     let rowCount = 0;

@@ -1,10 +1,17 @@
-import { BaseEntity, Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  BaseEntity,
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 export enum UserStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   PAUSED = 'paused',
-  DELETED = 'deleted'
+  DELETED = 'deleted',
 }
 
 @Entity('users') // sql table name === 'users'
@@ -34,4 +41,3 @@ export class User extends BaseEntity {
 
 // SQl Query to create Hash Index
 // `CREATE INDEX CONCURRENTLY user_email_hash_index on domains USING HASH (email_address)`
-

@@ -11,7 +11,9 @@ describe('DisposableDomainsController', () => {
       providers: [DisposableDomainsService],
     }).compile();
 
-    controller = module.get<DisposableDomainsController>(DisposableDomainsController);
+    controller = module.get<DisposableDomainsController>(
+      DisposableDomainsController,
+    );
   });
 
   it('should be defined', () => {

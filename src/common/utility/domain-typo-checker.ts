@@ -29,7 +29,7 @@ class DomainTypoChecker {
       return 0;
     }
 
-    let swap = first;
+    const swap = first;
 
     // Swapping the strings if `first` is longer than `second` to ensure shortest comes first
     if (first.length > second.length) {
@@ -44,7 +44,7 @@ class DomainTypoChecker {
     while (
       firstLength > 0 &&
       first.charCodeAt(~-firstLength) === second.charCodeAt(~-secondLength)
-      ) {
+    ) {
       firstLength--;
       secondLength--;
     }
@@ -54,7 +54,7 @@ class DomainTypoChecker {
     while (
       start < firstLength &&
       first.charCodeAt(start) === second.charCodeAt(start)
-      ) {
+    ) {
       start++;
     }
 

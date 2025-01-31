@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
   days,
-  hours, minutes,
+  hours,
+  minutes,
   seconds,
   ThrottlerModuleOptions,
   ThrottlerOptionsFactory,

@@ -27,9 +27,7 @@ async function bootstrap() {
       },
     }),
   );
-  app.useGlobalInterceptors(
-    new ResponseSuccessInterceptor(),
-  );
+  app.useGlobalInterceptors(new ResponseSuccessInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');

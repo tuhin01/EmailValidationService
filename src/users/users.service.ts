@@ -11,16 +11,20 @@ export class UsersService {
       email_address: registerDto.email_address,
     });
     if (existingUser) {
-      throw new BadRequestException(`${registerDto.email_address} already exist!`);
+      throw new BadRequestException(
+        `${registerDto.email_address} already exist!`,
+      );
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(registerDto.password, salt);
 
-    const user: User = User.create({ ...registerDto, password: hashedPassword });
+    const user: User = User.create({
+      ...registerDto,
+      password: hashedPassword,
+    });
     const dbUser = await user.save();
     delete dbUser.password;
     return dbUser;
-
   }
 
   findAll() {

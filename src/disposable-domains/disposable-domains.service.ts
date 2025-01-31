@@ -35,5 +35,4 @@ export class DisposableDomainsService {
       await queryRunner.release();
     }
   }
-
 }

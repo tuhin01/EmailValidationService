@@ -1,12 +1,12 @@
 export type EmailValidationResponseType = {
-  email_address: string,
-  email_status?: string,
-  email_sub_status?: string,
-  account?: string,
-  domain?: string,
-  free_email?: boolean,
-  domain_age_days?: number,
-}
+  email_address: string;
+  email_status?: string;
+  email_sub_status?: string;
+  account?: string;
+  domain?: string;
+  free_email?: boolean;
+  domain_age_days?: number;
+};
 
 /** Possible email verification statuses */
 export enum EmailStatus {
@@ -39,7 +39,7 @@ export enum EmailReason {
   MAILBOX_NOT_FOUND = 'mailbox_not_found',
   UNVERIFIABLE_EMAIL = 'unverifiable_email',
   SMTP_TIMEOUT = 'smtp_connection_timeout',
-  EMPTY = ''
+  EMPTY = '',
 }
 
 export const SMTPResponseCode = {

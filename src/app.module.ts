@@ -37,5 +37,4 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {
-}
+export class AppModule {}

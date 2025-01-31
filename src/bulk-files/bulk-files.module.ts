@@ -10,5 +10,4 @@ import { BulkFile } from './entities/bulk-file.entity';
   providers: [BulkFilesService],
   exports: [BulkFilesService],
 })
-export class BulkFilesModule {
-}
+export class BulkFilesModule {}

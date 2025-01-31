@@ -2,7 +2,8 @@ import {
   BaseEntity,
   Column,
   CreateDateColumn,
-  Entity, Index,
+  Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -10,7 +11,6 @@ import {
 export class ProcessedEmail extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
-
 
   @Column({ type: 'varchar', length: 255 })
   @Index({ unique: true })

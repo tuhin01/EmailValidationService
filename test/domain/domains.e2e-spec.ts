@@ -14,7 +14,7 @@ describe('AppController (e2e)', () => {
     domain: randomStringGenerator() + '.com',
     domain_ip: '234.45.0.24',
     domain_age_days: 334,
-    mx_records: ['smtp.yandex.com'],
+    mx_record_host: 'smtp.gmail.com'
   };
 
   let app: INestApplication;

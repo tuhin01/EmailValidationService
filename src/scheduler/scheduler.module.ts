@@ -8,5 +8,4 @@ import { DomainsModule } from '../domains/domains.module';
   providers: [SchedulerService],
   imports: [ScheduleModule.forRoot(), BulkFilesModule, DomainsModule],
 })
-export class SchedulerModule {
-}
+export class SchedulerModule {}

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { EmailRolesService } from './email-roles.service';
 import { CreateEmailRoleDto } from './dto/create-email-role.dto';
 import { UpdateEmailRoleDto } from './dto/update-email-role.dto';
@@ -7,8 +15,7 @@ import { DisposableDomain } from '../disposable-domains/entities/disposable-doma
 
 @Controller('email-roles')
 export class EmailRolesController {
-  constructor(private readonly emailRolesService: EmailRolesService) {
-  }
+  constructor(private readonly emailRolesService: EmailRolesService) {}
 
   @SkipThrottle()
   @Post('')
@@ -20,5 +27,4 @@ export class EmailRolesController {
   findOne(@Param('role') role: string) {
     return this.emailRolesService.findOne(role);
   }
-
 }

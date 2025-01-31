@@ -4,6 +4,4 @@ export class CsvUploadDto {
   @IsString({ message: `Email is required!` })
   @IsEmail()
   Email: string;
-
-
 }

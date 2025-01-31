@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Domain } from '../entities/domain.entity';
 import { CreateDomainDto } from '../dto/create-domain.dto';
 import { UpdateDomainDto } from '../dto/update-domain.dto';
@@ -15,7 +20,8 @@ import {
   CATCH_ALL_CHECK_DAY_GAP,
   CATCH_ALL_EMAIL,
   ERROR_DOMAIN_CHECK_DAY_GAP,
-  MX_RECORD_CHECK_DAY_GAP, PROCESSED_EMAIL_CHECK_DAY_GAP,
+  MX_RECORD_CHECK_DAY_GAP,
+  PROCESSED_EMAIL_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
 } from '../../common/utility/constant';
 import { DisposableDomainsService } from '../../disposable-domains/disposable-domains.service';
@@ -38,8 +44,7 @@ export class DomainService {
     private dataSource: DataSource,
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
-  ) {
-  }
+  ) {}
 
   async createMany(domains: Domain[]) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -72,7 +77,6 @@ export class DomainService {
 
   async findErrorDomain(domain: string): Promise<ErrorDomain> {
     return new Promise(async (resolve: any, reject): Promise<ErrorDomain> => {
-
       // Check if domain is listed in error_domains and
       const errorDomain: ErrorDomain = await ErrorDomain.findOneBy({
         domain,
@@ -113,14 +117,17 @@ export class DomainService {
       email_address: processedEmail.email_address,
     });
     if (!existingDomain) {
-      const dbProcessedEmail: ProcessedEmail = ProcessedEmail.create({ ...processedEmail });
+      const dbProcessedEmail: ProcessedEmail = ProcessedEmail.create({
+        ...processedEmail,
+      });
       return dbProcessedEmail.save();
     }
   }
 
   async getProcessedEmail(email: string) {
-    const processedEmail: ProcessedEmail =
-      await ProcessedEmail.findOneBy({ email_address: email });
+    const processedEmail: ProcessedEmail = await ProcessedEmail.findOneBy({
+      email_address: email,
+    });
     if (processedEmail) {
       const dayPassedSinceLastMxCheck = differenceInDays(
         new Date(),
@@ -154,7 +161,10 @@ export class DomainService {
       domain: errorDomain.domain,
     });
     if (existingDomain) {
-      if (errorDomain.domain_error['status'] !== existingDomain.domain_error['status']) {
+      if (
+        errorDomain.domain_error['status'] !==
+        existingDomain.domain_error['status']
+      ) {
         return true;
       } else {
         existingDomain.domain_error = errorDomain.domain_error;
@@ -165,7 +175,6 @@ export class DomainService {
     const domain = ErrorDomain.create({ ...errorDomain });
     return domain.save();
   }
-
 
   async update(domain: string, updateDto: UpdateDomainDto) {
     const existingDomain = await Domain.findOneBy({ domain });
@@ -318,7 +327,10 @@ export class DomainService {
     console.log('check catch all...');
     return new Promise(async (resolve, reject) => {
       try {
-        const isCatchAllValid: EmailStatusType = await this.verifySmtp(email, mxHost);
+        const isCatchAllValid: EmailStatusType = await this.verifySmtp(
+          email,
+          mxHost,
+        );
         console.log({ isCatchAllValid });
         if (isCatchAllValid.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
@@ -412,7 +424,10 @@ export class DomainService {
           reject(errorType);
         };
 
-        if (dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) && stage < commands.length) {
+        if (
+          dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
+          stage < commands.length
+        ) {
           socket.write(`${commands[stage++]}\r\n`);
           return;
         }
@@ -457,7 +472,6 @@ export class DomainService {
         }
       });
 
-
       socket.on('close', () => {
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
@@ -492,12 +506,10 @@ export class DomainService {
 
   checkDomainSpamDatabaseList(domain: string) {
     return new Promise((resolve, reject) => {
-
       const dnsbl = new DNSBL(domain);
 
-      dnsbl.on('error', function(error, blocklist) {
-      });
-      dnsbl.on('data', async function(result, blocklist) {
+      dnsbl.on('error', function (error, blocklist) {});
+      dnsbl.on('data', async function (result, blocklist) {
         if (result.status === 'listed') {
           const error: EmailStatusType = {
             status: EmailStatus.SPAMTRAP,
@@ -507,7 +519,7 @@ export class DomainService {
           return;
         }
       });
-      dnsbl.on('done', function() {
+      dnsbl.on('done', function () {
         resolve(true);
       });
     });
@@ -516,7 +528,8 @@ export class DomainService {
   async isRoleBasedEmail(email) {
     return new Promise(async (resolve, reject) => {
       const localPart = email.split('@')[0].toLowerCase();
-      const isRoleBased: EmailRole = await this.emailRolesService.findOne(localPart);
+      const isRoleBased: EmailRole =
+        await this.emailRolesService.findOne(localPart);
       if (isRoleBased) {
         const error: EmailStatusType = {
           status: EmailStatus.DO_NOT_MAIL,
@@ -628,8 +641,10 @@ export class DomainService {
       }
 
       // Step 7 : Get the MX records of the domain
-      const mxRecordHost: string =
-        await this.checkDomainMxRecords(domain, dbDomain);
+      const mxRecordHost: string = await this.checkDomainMxRecords(
+        domain,
+        dbDomain,
+      );
 
       // Save The domain if it is not already saved
       if (!dbDomain) {
@@ -652,16 +667,16 @@ export class DomainService {
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
-      const smtpResponse: EmailStatusType = await this.verifySmtp(email, mxRecordHost);
+      const smtpResponse: EmailStatusType = await this.verifySmtp(
+        email,
+        mxRecordHost,
+      );
       emailStatus.email_status = smtpResponse.status;
       emailStatus.email_sub_status = smtpResponse.reason;
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (smtpResponse.status === EmailStatus.VALID) {
-        const domainInfo: any = await this.getDomainAge(
-          domain,
-          dbDomain,
-        );
+        const domainInfo: any = await this.getDomainAge(domain, dbDomain);
         emailStatus.domain_age_days = domainInfo.domain_age_days;
         dbDomain.domain_age_days = domainInfo.domain_age_days;
         await dbDomain.save();
@@ -673,15 +688,21 @@ export class DomainService {
     } catch (error) {
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
-      emailStatus.free_email = freeEmailProviderList.includes(emailStatus.domain);
+      emailStatus.free_email = freeEmailProviderList.includes(
+        emailStatus.domain,
+      );
 
-      await this.saveProcessedErrorEmail(emailStatus, error, email)
+      await this.saveProcessedErrorEmail(emailStatus, error, email);
 
       return emailStatus;
     }
   }
 
-  async saveProcessedErrorEmail(emailStatus: EmailValidationResponseType, error, email: string) {
+  async saveProcessedErrorEmail(
+    emailStatus: EmailValidationResponseType,
+    error,
+    email: string,
+  ) {
     try {
       await this.saveProcessedEmail(emailStatus);
       // If the email is a free email OR Error reasons
@@ -694,7 +715,10 @@ export class DomainService {
         EmailReason.UNVERIFIABLE_EMAIL,
         EmailReason.MAILBOX_NOT_FOUND,
       ];
-      if (emailStatus.free_email || (error.reason && skipReasons.includes(error.reason))) {
+      if (
+        emailStatus.free_email ||
+        (error.reason && skipReasons.includes(error.reason))
+      ) {
         return emailStatus;
       }
 
@@ -708,5 +732,4 @@ export class DomainService {
       return e;
     }
   }
-
 }
