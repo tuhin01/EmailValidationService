@@ -1,13 +1,14 @@
+import multipart from '@fastify/multipart';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common';
-import multipart from '@fastify/multipart';
-import { ResponseSuccessInterceptor } from './common/interceptors/response-success.interceptor';
+
+import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/exception-filter/global-exception.filter';
+import { ResponseSuccessInterceptor } from './common/interceptors/response-success.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(

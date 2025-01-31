@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { DomainsController } from './domains.controller';
-import { DomainService } from './services/domain.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Domain } from './entities/domain.entity';
+
 import { DisposableDomainsModule } from '../disposable-domains/disposable-domains.module';
 import { EmailRolesModule } from '../email-roles/email-roles.module';
+import { DomainsController } from './domains.controller';
+import { Domain } from './entities/domain.entity';
 import { ErrorDomain } from './entities/error_domain.entity';
 import { ProcessedEmail } from './entities/processed_email.entity';
+import { DomainService } from './services/domain.service';
 
 @Module({
   imports: [

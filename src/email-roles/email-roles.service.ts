@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+
+import { DisposableDomain } from '../disposable-domains/entities/disposable-domain.entity';
+import { Domain } from '../domains/entities/domain.entity';
 import { CreateEmailRoleDto } from './dto/create-email-role.dto';
 import { UpdateEmailRoleDto } from './dto/update-email-role.dto';
-import { Domain } from '../domains/entities/domain.entity';
 import { EmailRole } from './entities/email-role.entity';
-import { DisposableDomain } from '../disposable-domains/entities/disposable-domain.entity';
-import { DataSource } from 'typeorm';
 
 @Injectable()
 export class EmailRolesService {

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { DisposableDomainsService } from './disposable-domains.service';
-import { DisposableDomainsController } from './disposable-domains.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { DisposableDomainsController } from './disposable-domains.controller';
+import { DisposableDomainsService } from './disposable-domains.service';
 import { DisposableDomain } from './entities/disposable-domain.entity';
 
 @Module({

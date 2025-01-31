@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+
 import { DisposableDomainsService } from './disposable-domains.service';
 
 describe('DisposableDomainsService', () => {

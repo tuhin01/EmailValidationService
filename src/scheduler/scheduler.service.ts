@@ -1,17 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
-import { BulkFilesService } from '../bulk-files/bulk-files.service';
-import { DomainService } from '../domains/services/domain.service';
 import * as fs from 'node:fs';
+
+import { Injectable, Logger } from '@nestjs/common';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { Cron } from '@nestjs/schedule';
 import { parse } from 'csv-parse';
+
+import { BulkFilesService } from '../bulk-files/bulk-files.service';
+import { CreateBulkFileDto } from '../bulk-files/dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from '../bulk-files/dto/update-bulk-file.dto';
 import { BulkFileStatus } from '../bulk-files/entities/bulk-file.entity';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import {
   EmailStatus,
   EmailValidationResponseType,
 } from '../common/utility/email-status-type';
-import { CreateBulkFileDto } from '../bulk-files/dto/create-bulk-file.dto';
+import { DomainService } from '../domains/services/domain.service';
 
 @Injectable()
 export class SchedulerService {

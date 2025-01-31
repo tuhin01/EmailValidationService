@@ -1,14 +1,16 @@
+import * as fs from 'node:fs';
+
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import * as csv from 'csv-parse';
+import { createObjectCsvWriter } from 'csv-writer';
+import * as path from 'path';
+
+import { CsvUploadDto } from '../common/dto/csv-upload.dto';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from './dto/update-bulk-file.dto';
-import * as csv from 'csv-parse';
-import { plainToInstance } from 'class-transformer';
-import { CsvUploadDto } from '../common/dto/csv-upload.dto';
-import { validate } from 'class-validator';
 import { BulkFile, BulkFileStatus } from './entities/bulk-file.entity';
-import { createObjectCsvWriter } from 'csv-writer';
-import * as fs from 'node:fs';
-import * as path from 'path';
 
 @Injectable()
 export class BulkFilesService {

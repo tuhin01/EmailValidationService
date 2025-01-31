@@ -1,6 +1,6 @@
 import * as dns from 'dns';
-import * as net from 'net';
 import { EventEmitter } from 'events';
+import * as net from 'net';
 
 const LIMIT = 200;
 

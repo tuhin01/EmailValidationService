@@ -1,4 +1,5 @@
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+
 import { BulkFileStatus } from '../entities/bulk-file.entity';
 
 export class CreateBulkFileDto {

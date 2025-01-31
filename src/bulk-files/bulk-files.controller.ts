@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+
 import {
   Body,
   Controller,
@@ -7,14 +9,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { BulkFilesService } from './bulk-files.service';
-import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { hours, minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { FastifyRequest } from 'fastify';
-import * as fs from 'node:fs';
-import { BulkFileStatus } from './entities/bulk-file.entity';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { BulkFilesService } from './bulk-files.service';
+import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
+import { BulkFileStatus } from './entities/bulk-file.entity';
 
 @Controller('bulk-files')
 export class BulkFilesController {

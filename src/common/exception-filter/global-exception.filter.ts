@@ -1,12 +1,13 @@
 import {
-  HttpException,
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { ErrorResponse } from '../interceptors/response-error.interceptor';
 import { format } from 'date-fns';
+
+import { ErrorResponse } from '../interceptors/response-error.interceptor';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

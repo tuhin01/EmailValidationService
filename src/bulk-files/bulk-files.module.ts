@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
-import { BulkFilesService } from './bulk-files.service';
-import { BulkFilesController } from './bulk-files.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { BulkFilesController } from './bulk-files.controller';
+import { BulkFilesService } from './bulk-files.service';
 import { BulkFile } from './entities/bulk-file.entity';
 
 @Module({

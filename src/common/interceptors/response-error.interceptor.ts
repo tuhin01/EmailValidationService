@@ -7,6 +7,7 @@ import {
   NestInterceptor,
   RequestTimeoutException,
 } from '@nestjs/common';
+import { format } from 'date-fns';
 import {
   catchError,
   Observable,
@@ -14,7 +15,6 @@ import {
   timeout,
   TimeoutError,
 } from 'rxjs';
-import { format } from 'date-fns';
 
 export type ErrorResponse = {
   status: boolean;

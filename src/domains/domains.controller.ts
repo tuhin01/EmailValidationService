@@ -1,8 +1,9 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { DomainService } from '@/domains/services/domain.service';
 import { minutes, Throttle } from '@nestjs/throttler';
-import { EmailDto } from '@/domains/dto/email.dto';
+
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { EmailDto } from '@/domains/dto/email.dto';
+import { DomainService } from '@/domains/services/domain.service';
 
 @Controller('email')
 export class DomainsController {

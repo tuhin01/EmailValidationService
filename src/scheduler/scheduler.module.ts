@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { SchedulerService } from './scheduler.service';
 import { ScheduleModule } from '@nestjs/schedule';
+
 import { BulkFilesModule } from '../bulk-files/bulk-files.module';
 import { DomainsModule } from '../domains/domains.module';
+import { SchedulerService } from './scheduler.service';
 
 @Module({
   providers: [SchedulerService],
