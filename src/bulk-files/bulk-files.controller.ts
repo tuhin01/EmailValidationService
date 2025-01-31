@@ -1,7 +1,7 @@
 import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { BulkFilesService } from './bulk-files.service';
 import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
-import { SkipThrottle } from '@nestjs/throttler';
+import { hours, minutes, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { FastifyRequest } from 'fastify';
 import * as fs from 'node:fs';
 import { BulkFileStatus } from './entities/bulk-file.entity';
@@ -13,7 +13,9 @@ export class BulkFilesController {
   constructor(private readonly bulkFilesService: BulkFilesService) {
   }
 
-  @SkipThrottle()
+  @Throttle({
+    default: { limit: 500, ttl: minutes(1), blockDuration: minutes(1) },
+  })
   @UseGuards(JwtAuthGuard)
   @Post('upload')
   async uploadCsv(

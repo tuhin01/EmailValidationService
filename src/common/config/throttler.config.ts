@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   days,
-  hours,
+  hours, minutes,
   seconds,
   ThrottlerModuleOptions,
   ThrottlerOptionsFactory,
@@ -16,9 +16,9 @@ export class ThrottlerConfigService implements ThrottlerOptionsFactory {
     return {
       throttlers: [
         {
-          limit: 5000,
+          limit: 50000,
           ttl: hours(1),
-          blockDuration: hours(1),
+          blockDuration: minutes(5),
         },
       ],
       errorMessage: 'Rate limit exceeded. Please try again later.',

@@ -4,10 +4,8 @@ import {
   Post, UseGuards,
 } from '@nestjs/common';
 import { DomainService } from './services/domain.service';
-import { SkipThrottle } from '@nestjs/throttler';
+import { hours, minutes, seconds, SkipThrottle, Throttle } from '@nestjs/throttler';
 import { EmailDto } from './dto/email.dto';
-import * as fs from 'node:fs';
-import { parse } from 'csv-parse';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 
 
@@ -19,10 +17,9 @@ export class DomainsController {
   }
 
 
-  // @Throttle({
-  //   default: { limit: 5, ttl: seconds(5), blockDuration: seconds(1) },
-  // })
-  @SkipThrottle()
+  @Throttle({
+    default: { limit: 50000, ttl: minutes(1), blockDuration: minutes(1) },
+  })
   @Post('validate')
   @UseGuards(JwtAuthGuard)
   async validate(@Body() emailDto: EmailDto) {
