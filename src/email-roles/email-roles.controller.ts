@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { CreateEmailRoleDto } from './dto/create-email-role.dto';
-import { EmailRolesService } from './email-roles.service';
+import { CreateEmailRoleDto } from '@/email-roles/dto/create-email-role.dto';
+import { EmailRolesService } from '@/email-roles/email-roles.service';
 
 @Controller('email-roles')
 export class EmailRolesController {

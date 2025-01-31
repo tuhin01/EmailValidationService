@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { FastifyRequest } from 'fastify';
 import { Observable } from 'rxjs';
 
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {

@@ -5,14 +5,14 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 import { Cron } from '@nestjs/schedule';
 import { parse } from 'csv-parse';
 
-import { BulkFilesService } from '../bulk-files/bulk-files.service';
-import { UpdateBulkFileDto } from '../bulk-files/dto/update-bulk-file.dto';
-import { BulkFileStatus } from '../bulk-files/entities/bulk-file.entity';
+import { BulkFilesService } from '@/bulk-files/bulk-files.service';
+import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
+import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import {
   EmailStatus,
   EmailValidationResponseType,
-} from '../common/utility/email-status-type';
-import { DomainService } from '../domains/services/domain.service';
+} from '@/common/utility/email-status-type';
+import { DomainService } from '@/domains/services/domain.service';
 
 @Injectable()
 export class SchedulerService {

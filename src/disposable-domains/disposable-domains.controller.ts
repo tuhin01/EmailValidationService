@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 
-import { DisposableDomainsService } from './disposable-domains.service';
-import { DisposableDomain } from './entities/disposable-domain.entity';
+import { DisposableDomainsService } from '@/disposable-domains/disposable-domains.service';
+import { DisposableDomain } from '@/disposable-domains/entities/disposable-domain.entity';
 
 @Controller('disposable-domains')
 export class DisposableDomainsController {

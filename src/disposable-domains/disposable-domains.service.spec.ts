@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { DisposableDomainsService } from './disposable-domains.service';
+import { DisposableDomainsService } from '@/disposable-domains/disposable-domains.service';
 
 describe('DisposableDomainsService', () => {
   let service: DisposableDomainsService;

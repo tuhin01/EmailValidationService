@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
-import { CreateEmailRoleDto } from './dto/create-email-role.dto';
-import { EmailRole } from './entities/email-role.entity';
+import { CreateEmailRoleDto } from '@/email-roles/dto/create-email-role.dto';
+import { EmailRole } from '@/email-roles/entities/email-role.entity';
 
 @Injectable()
 export class EmailRolesService {

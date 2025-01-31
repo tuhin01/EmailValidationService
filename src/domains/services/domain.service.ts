@@ -12,7 +12,7 @@ import * as parseWhois from 'parse-whois';
 import { DataSource } from 'typeorm';
 import * as whois from 'whois';
 
-import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
 import {
   CATCH_ALL_CHECK_DAY_GAP,
   CATCH_ALL_EMAIL,
@@ -20,25 +20,25 @@ import {
   MX_RECORD_CHECK_DAY_GAP,
   PROCESSED_EMAIL_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
-} from '../../common/utility/constant';
-import { DNSBL } from '../../common/utility/dnsbl';
-import DomainTypoChecker from '../../common/utility/domain-typo-checker';
+} from '@/common/utility/constant';
+import { DNSBL } from '@/common/utility/dnsbl';
+import DomainTypoChecker from '@/common/utility/domain-typo-checker';
 import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
   EmailValidationResponseType,
   SMTPResponseCode,
-} from '../../common/utility/email-status-type';
-import freeEmailProviderList from '../../common/utility/free-email-provider-list';
-import { DisposableDomainsService } from '../../disposable-domains/disposable-domains.service';
-import { EmailRolesService } from '../../email-roles/email-roles.service';
-import { EmailRole } from '../../email-roles/entities/email-role.entity';
-import { CreateDomainDto } from '../dto/create-domain.dto';
-import { UpdateDomainDto } from '../dto/update-domain.dto';
-import { Domain } from '../entities/domain.entity';
-import { ErrorDomain } from '../entities/error_domain.entity';
-import { ProcessedEmail } from '../entities/processed_email.entity';
+} from '@/common/utility/email-status-type';
+import freeEmailProviderList from '@/common/utility/free-email-provider-list';
+import { DisposableDomainsService } from '@/disposable-domains/disposable-domains.service';
+import { EmailRolesService } from '@/email-roles/email-roles.service';
+import { EmailRole } from '@/email-roles/entities/email-role.entity';
+import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
+import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
+import { Domain } from '@/domains/entities/domain.entity';
+import { ErrorDomain } from '@/domains/entities/error_domain.entity';
+import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 
 @Injectable()
 export class DomainService {

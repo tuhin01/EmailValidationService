@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { BulkFilesService } from './bulk-files.service';
+import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 
 describe('BulkFilesService', () => {
   let service: BulkFilesService;

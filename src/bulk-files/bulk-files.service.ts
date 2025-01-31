@@ -7,10 +7,10 @@ import * as csv from 'csv-parse';
 import { createObjectCsvWriter } from 'csv-writer';
 import * as path from 'path';
 
-import { CsvUploadDto } from '../common/dto/csv-upload.dto';
-import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
-import { UpdateBulkFileDto } from './dto/update-bulk-file.dto';
-import { BulkFile, BulkFileStatus } from './entities/bulk-file.entity';
+import { CsvUploadDto } from '@/common/dto/csv-upload.dto';
+import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
+import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
+import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 
 @Injectable()
 export class BulkFilesService {

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { format } from 'date-fns';
 
-import { ErrorResponse } from '../interceptors/response-error.interceptor';
+import { ErrorResponse } from '@/common/interceptors/response-error.interceptor';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {

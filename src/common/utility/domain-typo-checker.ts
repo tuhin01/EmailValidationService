@@ -1,4 +1,4 @@
-import freeEmailProviderList from './free-email-provider-list';
+import freeEmailProviderList from '@/common/utility/free-email-provider-list';
 
 class DomainTypoChecker {
   private array: number[] = [];

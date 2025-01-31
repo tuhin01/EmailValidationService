@@ -13,10 +13,10 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 import { minutes, Throttle } from '@nestjs/throttler';
 import { FastifyRequest } from 'fastify';
 
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { BulkFilesService } from './bulk-files.service';
-import { CreateBulkFileDto } from './dto/create-bulk-file.dto';
-import { BulkFileStatus } from './entities/bulk-file.entity';
+import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
+import { BulkFilesService } from '@/bulk-files/bulk-files.service';
+import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
+import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 
 @Controller('bulk-files')
 export class BulkFilesController {

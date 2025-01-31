@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { EmailRolesController } from './email-roles.controller';
-import { EmailRolesService } from './email-roles.service';
-import { EmailRole } from './entities/email-role.entity';
+import { EmailRolesController } from '@/email-roles/email-roles.controller';
+import { EmailRolesService } from '@/email-roles/email-roles.service';
+import { EmailRole } from '@/email-roles/entities/email-role.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([EmailRole])],

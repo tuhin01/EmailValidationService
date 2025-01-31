@@ -1,9 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
-import AppDataSource from '../../database/config/datasource.config';
-import { Domain } from '../entities/domain.entity';
-import { DomainService } from './domain.service';
+import AppDataSource from '@/database/config/datasource.config';
+import { Domain } from '@/domains/entities/domain.entity';
+import { DomainService } from '@/domains/services/domain.service';
 
 let connection: any;
 describe('DomainService', () => {

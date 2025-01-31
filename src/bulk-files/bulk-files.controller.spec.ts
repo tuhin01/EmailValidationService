@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { BulkFilesController } from './bulk-files.controller';
-import { BulkFilesService } from './bulk-files.service';
+import { BulkFilesController } from '@/bulk-files/bulk-files.controller';
+import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 
 describe('BulkFilesController', () => {
   let controller: BulkFilesController;
