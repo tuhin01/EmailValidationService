@@ -12,6 +12,8 @@ import { CommonModule } from './common/common.module';
 import { ThrottlerConfigService } from './common/config/throttler.config';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { UsersModule } from './users/users.module';
+import { MailerService } from './mailer/mailer.service';
+import { MailerModule } from './mailer/mailer.module';
 
 @Module({
   imports: [
@@ -34,8 +36,9 @@ import { UsersModule } from './users/users.module';
     BulkFilesModule,
     AuthModule,
     UsersModule,
+    MailerModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }, MailerService],
 })
 export class AppModule {}

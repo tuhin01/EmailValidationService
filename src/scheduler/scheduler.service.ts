@@ -13,6 +13,7 @@ import {
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
+import { MailerService } from '@/mailer/mailer.service';
 
 @Injectable()
 export class SchedulerService {
@@ -21,7 +22,9 @@ export class SchedulerService {
   constructor(
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
-  ) {}
+    private mailerService: MailerService,
+  ) {
+  }
 
   @Cron('1 * * * * *')
   public async runFileEmailValidation() {
@@ -73,6 +76,14 @@ export class SchedulerService {
       );
       console.log('File Status updated to - COMPLETE');
       console.log('Done');
+
+      await this.mailerService.sendEmail(
+        `Tuhin Pathan <tuhin.world@gmail.com>`,
+        'Email validation is complete',
+        'welcome',
+        { 'name': 'John Doe' },
+      );
+
     } catch (e) {
       console.log(e);
     }
