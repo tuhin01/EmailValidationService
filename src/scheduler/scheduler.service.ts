@@ -15,6 +15,7 @@ import {
 } from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
 import { InjectQueue } from '@nestjs/bull';
+import { BULK_EMAIL_SEND } from '@/common/utility/constant';
 
 @Injectable()
 export class SchedulerService {
@@ -84,7 +85,7 @@ export class SchedulerService {
         template: 'welcome',
         context: { 'name': 'John Doe' },
       };
-      await this.emailQueue.add('sendEmail', emailData, {
+      await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
         attempts: 3, // Retry 3 times if failed
       });
 

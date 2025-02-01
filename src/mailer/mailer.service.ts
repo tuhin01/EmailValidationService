@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as process from 'node:process';
-import * as path from 'path';
 import * as hbs from 'nodemailer-express-handlebars';
 
 @Injectable()
