@@ -1,4 +1,5 @@
-import * as net from 'node:net';
+import net from 'net';
+
 
 import {
   HttpException,
@@ -39,6 +40,8 @@ import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
 import { Domain } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
+import { SocksClient, SocksClientOptions } from 'socks';
+import { SocksCommandOption } from 'socks/typings/common/constants';
 
 @Injectable()
 export class DomainService {
@@ -46,7 +49,8 @@ export class DomainService {
     private dataSource: DataSource,
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
-  ) {}
+  ) {
+  }
 
   async createMany(domains: Domain[]) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -351,158 +355,128 @@ export class DomainService {
   }
 
   async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
-    return new Promise((resolve, reject) => {
-      const socket = net.createConnection(25, mxHost);
-      socket.setEncoding('ascii');
-      socket.setTimeout(5000);
-      console.log({ email });
-      const commands = [
-        `EHLO ${mxHost}`,
-        `MAIL FROM: <${email}>`,
-        `RCPT TO: <${email}>`,
-      ];
+    return new Promise(async (resolve, reject) => {
+      const proxyOptions: SocksClientOptions = {
+        proxy: {
+          host: 'your-socks-proxy.com',
+          port: 1080,
+          type: 5, // SOCKS5 proxy
+        },
+        command: 'connect',
+        destination: {
+          host: 'example.com',
+          port: 80, // Target server port
+        },
+      };
 
-      let stage = 0;
+      try {
+        const { socket } = await SocksClient.createConnection(proxyOptions);
+        socket.setEncoding('ascii');
+        socket.setTimeout(5000);
+        console.log({ email });
+        const commands = [
+          `EHLO ${mxHost}`,
+          `MAIL FROM: <${email}>`,
+          `RCPT TO: <${email}>`,
+        ];
 
-      socket.on('connect', () => {
-        socket.write(`${commands[stage++]}\r\n`);
-      });
+        let stage = 0;
 
-      // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
-      // Parse the SMTP response based on response code listed above
-      // socket.on('data', (data) => {
-      //   console.log(data);
-      //   if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
-      //     socket.write(`${commands[stage++]}\r\n`);
-      //   } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FIVE_50;
-      //     reject(error);
-      //     return;
-      //   } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FOUR_21;
-      //     reject(error);
-      //     return;
-      //   } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FIVE_53;
-      //     reject(error);
-      //     return;
-      //   } else if (stage === commands.length) {
-      //     this.closeSmtpConnection(socket);
-      //     const smailStatus: EmailStatusType = {
-      //       status: EmailStatus.VALID,
-      //       reason: EmailReason.EMPTY,
-      //     };
-      //     resolve(smailStatus);
-      //     return;
-      //   } else {
-      //     const errorData = data.toString();
-      //     // When no other condition is true, handle it for all other codes
-      //     // Response code starts with "4" - Temporary error, and we should retry later
-      //     // Response code starts with "5" - Permanent error and must not retry
-      //     if (errorData.startsWith('4') || errorData.startsWith('5')) {
-      //       const responseCode: number = parseInt(errorData.substring(0, 3));
-      //       const smailStatus: EmailStatusType = {
-      //         status: EmailStatus.INVALID,
-      //         smtp_code: responseCode,
-      //         reason: EmailReason.MAILBOX_NOT_FOUND,
-      //         retry: errorData.startsWith('4'),
-      //       };
-      //       resolve(smailStatus);
-      //       return;
-      //     }
-      //   }
-      // });
-
-      socket.on('data', (data) => {
-        console.log(data);
-        const dataStr = data.toString();
-
-        // Function to handle errors and close the connection
-        const handleError = (errorType: EmailStatusType) => {
-          this.closeSmtpConnection(socket);
-          reject(errorType);
-        };
-
-        if (
-          dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
-          stage < commands.length
-        ) {
+        socket.on('connect', () => {
           socket.write(`${commands[stage++]}\r\n`);
-          return;
-        }
+        });
 
-        // Handle specific SMTP error codes
-        const smtpErrors: Record<string, EmailStatusType> = {
-          [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
-          [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
-          [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
-        };
+        // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
+        socket.on('data', (data) => {
+          console.log(data);
+          const dataStr = data.toString();
 
-        for (const [code, errorType] of Object.entries(smtpErrors)) {
-          if (dataStr.includes(code)) {
-            handleError(errorType);
+          // Function to handle errors and close the connection
+          const handleError = (errorType: EmailStatusType) => {
+            this.closeSmtpConnection(socket);
+            reject(errorType);
+          };
+
+          if (
+            dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
+            stage < commands.length
+          ) {
+            socket.write(`${commands[stage++]}\r\n`);
             return;
           }
-        }
 
-        // If all commands have been processed successfully
-        if (stage === commands.length) {
-          this.closeSmtpConnection(socket);
-          resolve({
-            status: EmailStatus.VALID,
-            reason: EmailReason.EMPTY,
-          });
-          return;
-        }
+          // Handle specific SMTP error codes
+          const smtpErrors: Record<string, EmailStatusType> = {
+            [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
+            [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
+            [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
+          };
 
-        // General Error Handling for 4xx and 5xx Responses
-        const smtpErrorRegex = /^([45]\d{2})/;
-        const match = dataStr.match(smtpErrorRegex);
-        if (match) {
-          const responseCode = parseInt(match[1], 10);
-          const isTemporaryError = responseCode >= 400 && responseCode < 500;
+          for (const [code, errorType] of Object.entries(smtpErrors)) {
+            if (dataStr.includes(code)) {
+              handleError(errorType);
+              return;
+            }
+          }
 
-          resolve({
+          // If all commands have been processed successfully
+          if (stage === commands.length) {
+            this.closeSmtpConnection(socket);
+            resolve({
+              status: EmailStatus.VALID,
+              reason: EmailReason.EMPTY,
+            });
+            return;
+          }
+
+          // General Error Handling for 4xx and 5xx Responses
+          const smtpErrorRegex = /^([45]\d{2})/;
+          const match = dataStr.match(smtpErrorRegex);
+          if (match) {
+            const responseCode = parseInt(match[1], 10);
+            const isTemporaryError = responseCode >= 400 && responseCode < 500;
+
+            resolve({
+              status: EmailStatus.INVALID,
+              smtp_code: responseCode,
+              reason: EmailReason.MAILBOX_NOT_FOUND,
+              retry: isTemporaryError,
+            });
+          }
+        });
+
+        socket.on('close', () => {
+          const error: EmailStatusType = {
             status: EmailStatus.INVALID,
-            smtp_code: responseCode,
-            reason: EmailReason.MAILBOX_NOT_FOUND,
-            retry: isTemporaryError,
-          });
-        }
-      });
+            reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+          };
+          reject(error);
+          return;
+        });
 
-      socket.on('close', () => {
-        const error: EmailStatusType = {
-          status: EmailStatus.INVALID,
-          reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
-        };
-        reject(error);
-        return;
-      });
+        socket.on('error', (err) => {
+          console.log(err);
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = {
+            status: EmailStatus.UNKNOWN,
+            reason: err.message,
+          };
+          reject(error);
+          return;
+        });
 
-      socket.on('error', (err) => {
-        console.log(err);
-        this.closeSmtpConnection(socket);
-        const error: EmailStatusType = {
-          status: EmailStatus.UNKNOWN,
-          reason: err.message,
-        };
-        reject(error);
-        return;
-      });
-
-      socket.on('timeout', () => {
-        this.closeSmtpConnection(socket);
-        const error: EmailStatusType = {
-          status: EmailStatus.UNKNOWN,
-          reason: EmailReason.SMTP_TIMEOUT,
-        };
-        reject(error);
-        return;
-      });
+        socket.on('timeout', () => {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = {
+            status: EmailStatus.UNKNOWN,
+            reason: EmailReason.SMTP_TIMEOUT,
+          };
+          reject(error);
+          return;
+        });
+      } catch (error) {
+        console.error('Proxy connection failed:', error);
+      }
     });
   }
 
@@ -510,8 +484,9 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       const dnsbl = new DNSBL(domain);
 
-      dnsbl.on('error', function (error, blocklist) {});
-      dnsbl.on('data', async function (result, blocklist) {
+      dnsbl.on('error', function(error, blocklist) {
+      });
+      dnsbl.on('data', async function(result, blocklist) {
         if (result.status === 'listed') {
           const error: EmailStatusType = {
             status: EmailStatus.SPAMTRAP,
@@ -521,7 +496,7 @@ export class DomainService {
           return;
         }
       });
-      dnsbl.on('done', function () {
+      dnsbl.on('done', function() {
         resolve(true);
       });
     });
