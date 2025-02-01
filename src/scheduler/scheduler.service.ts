@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { Cron } from '@nestjs/schedule';
 import { parse } from 'csv-parse';
+import { Queue } from 'bull';
 
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
@@ -13,7 +14,7 @@ import {
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
-import { MailerService } from '@/mailer/mailer.service';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class SchedulerService {
@@ -22,7 +23,7 @@ export class SchedulerService {
   constructor(
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
-    private mailerService: MailerService,
+    @InjectQueue('emailQueue') private emailQueue: Queue,
   ) {
   }
 
@@ -77,12 +78,15 @@ export class SchedulerService {
       console.log('File Status updated to - COMPLETE');
       console.log('Done');
 
-      await this.mailerService.sendEmail(
-        `Tuhin Pathan <tuhin.world@gmail.com>`,
-        'Email validation is complete',
-        'welcome',
-        { 'name': 'John Doe' },
-      );
+      const emailData = {
+        to: `Tuhin Pathan <tuhin.world@gmail.com>`,
+        subject: 'Email validation is complete',
+        template: 'welcome',
+        context: { 'name': 'John Doe' },
+      };
+      await this.emailQueue.add('sendEmail', emailData, {
+        attempts: 3, // Retry 3 times if failed
+      });
 
     } catch (e) {
       console.log(e);

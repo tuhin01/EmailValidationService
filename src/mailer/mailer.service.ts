@@ -35,7 +35,7 @@ export class MailerService {
     );
   }
 
-  async sendEmail(to: string, subject: string, template: string, context: any) {
+  async sendEmail({ to, subject, template, context }) {
     const mailOptions = {
       from: process.env.SMTP_FROM_EMAIL,
       to,
