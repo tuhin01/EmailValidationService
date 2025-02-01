@@ -40,6 +40,12 @@ import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { SocksClient, SocksClientOptions } from 'socks';
 import { SocksCommandOption } from 'socks/typings/common/constants';
 
+const proxies = [
+  { host: 'proxy1.com', port: 1080, userId: 'user1', password: 'pass1' },
+  { host: 'proxy2.com', port: 1080, userId: 'user2', password: 'pass2' },
+  { host: 'proxy3.com', port: 1080, userId: 'user3', password: 'pass3' },
+];
+
 @Injectable()
 export class DomainService {
   constructor(
@@ -353,16 +359,18 @@ export class DomainService {
 
   async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
     return new Promise(async (resolve, reject) => {
+
+      const proxy = proxies[Math.floor(Math.random() * proxies.length)]; // Pick a random proxy
+
       const proxyOptions: SocksClientOptions = {
         proxy: {
-          host: 'your-socks-proxy.com',
-          port: 1080,
-          type: 5, // SOCKS5 proxy
+          ...proxy,
+          type: 5,
         },
         command: 'connect',
         destination: {
-          host: 'example.com',
-          port: 80, // Target server port
+          host: mxHost,
+          port: 25,
         },
       };
 
