@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -14,6 +14,9 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { UsersModule } from './users/users.module';
 import { MailerService } from './mailer/mailer.service';
 import { MailerModule } from './mailer/mailer.module';
+import { WinstonLoggerService } from './logger/winston-logger.service';
+import { WinstonLoggerModule } from '@/logger/winston-logger.module';
+import { GlobalExceptionFilter } from '@/common/exception-filter/global-exception.filter';
 
 @Module({
   imports: [
@@ -37,8 +40,22 @@ import { MailerModule } from './mailer/mailer.module';
     AuthModule,
     UsersModule,
     MailerModule,
+    WinstonLoggerModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }, MailerService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    MailerService,
+    WinstonLoggerService,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule {
+}

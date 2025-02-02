@@ -16,6 +16,7 @@ import {
 import { DomainService } from '@/domains/services/domain.service';
 import { InjectQueue } from '@nestjs/bull';
 import { BULK_EMAIL_SEND } from '@/common/utility/constant';
+import { WinstonLoggerService } from '@/logger/winston-logger.service';
 
 @Injectable()
 export class SchedulerService {
@@ -24,6 +25,7 @@ export class SchedulerService {
   constructor(
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
+    private winstonLoggerService: WinstonLoggerService,
     @InjectQueue('emailQueue') private emailQueue: Queue,
   ) {
   }
@@ -90,6 +92,7 @@ export class SchedulerService {
       });
 
     } catch (e) {
+      this.winstonLoggerService.error('Bulk File Error', e.trace);
       console.log(e);
     }
   }
