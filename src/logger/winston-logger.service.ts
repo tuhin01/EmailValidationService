@@ -11,7 +11,6 @@ export class WinstonLoggerService implements LoggerService {
   constructor() {
     // Define the log directory
     const logDir = path.join(process.cwd(), 'logs');
-    console.log(logDir);
 
     // Create the logs directory if it doesn't exist
     if (!fs.existsSync(logDir)) {
@@ -36,6 +35,7 @@ export class WinstonLoggerService implements LoggerService {
           maxFiles: '7d',
         }),
         new DailyRotateFile({
+          level: 'warn',
           filename: path.join(logDir, 'combined-%DATE%.log'),
           datePattern: 'YYYY-MM-DD',
           zippedArchive: true,
