@@ -41,9 +41,9 @@ import { SocksClient, SocksClientOptions } from 'socks';
 import { SocksCommandOption } from 'socks/typings/common/constants';
 
 const proxies = [
-  { host: 'proxy1.com', port: 1080, userId: 'user1', password: 'pass1' },
-  { host: 'proxy2.com', port: 1080, userId: 'user2', password: 'pass2' },
-  { host: 'proxy3.com', port: 1080, userId: 'user3', password: 'pass3' },
+  { host: 'gate.smartproxy.com', port: 7000, userId: 'user-spt5aqejt4-session-1', password: '8uDo7qery4jC7zu~KG' },
+  { host: 'gate.smartproxy.com', port: 7000, userId: 'user-spt5aqejt4-session-2', password: '8uDo7qery4jC7zu~KG' },
+  { host: 'gate.smartproxy.com', port: 7000, userId: 'user-spt5aqejt4-session-3', password: '8uDo7qery4jC7zu~KG' },
 ];
 
 @Injectable()
@@ -376,6 +376,7 @@ export class DomainService {
 
       try {
         const { socket } = await SocksClient.createConnection(proxyOptions);
+        console.log(socket);
         socket.setEncoding('ascii');
         socket.setTimeout(5000);
         console.log({ email });
@@ -480,7 +481,7 @@ export class DomainService {
           return;
         });
       } catch (error) {
-        console.error('Proxy connection failed:', error);
+        console.error(error);
       }
     });
   }
