@@ -35,6 +35,7 @@ export class WinstonLoggerService implements LoggerService {
           maxFiles: '7d',
         }),
         new DailyRotateFile({
+          level: 'warn',
           filename: path.join(logDir, 'combined-%DATE%.log'),
           datePattern: 'YYYY-MM-DD',
           zippedArchive: true,
