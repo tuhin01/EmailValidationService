@@ -40,7 +40,7 @@ export class WinstonLoggerService implements LoggerService {
           datePattern: 'YYYY-MM-DD',
           zippedArchive: true,
           maxSize: '20m',
-          maxFiles: '3d',
+          maxFiles: '7d',
         }),
       ],
     });
