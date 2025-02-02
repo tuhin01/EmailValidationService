@@ -7,13 +7,16 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
-import { GlobalExceptionFilter } from './common/exception-filter/global-exception.filter';
 import { ResponseSuccessInterceptor } from './common/interceptors/response-success.interceptor';
+import { WinstonLoggerService } from '@/logger/winston-logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+    {
+      logger: new WinstonLoggerService(),
+    },
   );
   // Register the multipart plugin
   await app.register(multipart);
@@ -29,7 +32,6 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new ResponseSuccessInterceptor());
-  app.useGlobalFilters(new GlobalExceptionFilter());
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }

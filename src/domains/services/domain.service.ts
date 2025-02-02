@@ -39,6 +39,7 @@ import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
 import { Domain } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
+import { WinstonLoggerService } from '@/logger/winston-logger.service';
 
 @Injectable()
 export class DomainService {
@@ -46,7 +47,9 @@ export class DomainService {
     private dataSource: DataSource,
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
-  ) {}
+    private winstonLoggerService: WinstonLoggerService,
+  ) {
+  }
 
   async createMany(domains: Domain[]) {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -352,7 +355,7 @@ export class DomainService {
 
   async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
     return new Promise((resolve, reject) => {
-      const socket = net.createConnection(25, mxHost);
+      const socket = net.createConnection(587, mxHost);
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
       console.log({ email });
@@ -369,53 +372,6 @@ export class DomainService {
       });
 
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
-      // Parse the SMTP response based on response code listed above
-      // socket.on('data', (data) => {
-      //   console.log(data);
-      //   if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
-      //     socket.write(`${commands[stage++]}\r\n`);
-      //   } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FIVE_50;
-      //     reject(error);
-      //     return;
-      //   } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FOUR_21;
-      //     reject(error);
-      //     return;
-      //   } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
-      //     this.closeSmtpConnection(socket);
-      //     const error: EmailStatusType = SMTPResponseCode.FIVE_53;
-      //     reject(error);
-      //     return;
-      //   } else if (stage === commands.length) {
-      //     this.closeSmtpConnection(socket);
-      //     const smailStatus: EmailStatusType = {
-      //       status: EmailStatus.VALID,
-      //       reason: EmailReason.EMPTY,
-      //     };
-      //     resolve(smailStatus);
-      //     return;
-      //   } else {
-      //     const errorData = data.toString();
-      //     // When no other condition is true, handle it for all other codes
-      //     // Response code starts with "4" - Temporary error, and we should retry later
-      //     // Response code starts with "5" - Permanent error and must not retry
-      //     if (errorData.startsWith('4') || errorData.startsWith('5')) {
-      //       const responseCode: number = parseInt(errorData.substring(0, 3));
-      //       const smailStatus: EmailStatusType = {
-      //         status: EmailStatus.INVALID,
-      //         smtp_code: responseCode,
-      //         reason: EmailReason.MAILBOX_NOT_FOUND,
-      //         retry: errorData.startsWith('4'),
-      //       };
-      //       resolve(smailStatus);
-      //       return;
-      //     }
-      //   }
-      // });
-
       socket.on('data', (data) => {
         console.log(data);
         const dataStr = data.toString();
@@ -484,7 +440,6 @@ export class DomainService {
       });
 
       socket.on('error', (err) => {
-        console.log(err);
         this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
@@ -510,8 +465,9 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       const dnsbl = new DNSBL(domain);
 
-      dnsbl.on('error', function (error, blocklist) {});
-      dnsbl.on('data', async function (result, blocklist) {
+      dnsbl.on('error', function(error, blocklist) {
+      });
+      dnsbl.on('data', async function(result, blocklist) {
         if (result.status === 'listed') {
           const error: EmailStatusType = {
             status: EmailStatus.SPAMTRAP,
@@ -521,7 +477,7 @@ export class DomainService {
           return;
         }
       });
-      dnsbl.on('done', function () {
+      dnsbl.on('done', function() {
         resolve(true);
       });
     });
@@ -693,7 +649,7 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-
+      this.winstonLoggerService.error(`smtpValidation() - ${email}`, JSON.stringify(error));
       await this.saveProcessedErrorEmail(emailStatus, error, email);
 
       return emailStatus;
@@ -702,7 +658,7 @@ export class DomainService {
 
   async saveProcessedErrorEmail(
     emailStatus: EmailValidationResponseType,
-    error,
+    error: { reason: EmailReason; },
     email: string,
   ) {
     try {
@@ -731,6 +687,8 @@ export class DomainService {
       };
       await this.createOrUpdateErrorDomain(errorDomain);
     } catch (e) {
+      this.winstonLoggerService.error(`saveProcessedErrorEmail() - ${email}`, JSON.stringify(e));
+
       return e;
     }
   }

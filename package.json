@@ -59,7 +59,9 @@
     "rxjs": "7.8.1",
     "typeorm": "0.3.20",
     "whois": "2.14.2",
-    "whois-parsed": "1.0.14"
+    "whois-parsed": "1.0.14",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "10.4.9",
@@ -75,6 +77,7 @@
     "@types/passport-jwt": "3.0.13",
     "@types/passport-local": "1.0.38",
     "@types/supertest": "6.0.2",
+    "@types/winston": "^2.4.4",
     "@typescript-eslint/eslint-plugin": "8.20.0",
     "@typescript-eslint/parser": "8.20.0",
     "eslint": "8.57.1",

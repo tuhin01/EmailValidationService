@@ -3,14 +3,18 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
-  HttpStatus,
+  HttpStatus, Inject,
 } from '@nestjs/common';
 import { format } from 'date-fns';
 
 import { ErrorResponse } from '@/common/interceptors/response-error.interceptor';
+import { WinstonLoggerService } from '@/logger/winston-logger.service';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  constructor(@Inject(WinstonLoggerService) private readonly winstonLoggerService: WinstonLoggerService) {
+  }
+
   catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = host.switchToHttp().getResponse();
@@ -32,6 +36,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error: errorMessage,
       timestamp: format(new Date().toISOString(), 'yyyy-MM-dd HH:mm:ss'),
     };
+    this.winstonLoggerService.error(`GlobalExceptionFilter - `, JSON.stringify(finalRes));
 
     return response.code(statusCode).send(finalRes);
   }
