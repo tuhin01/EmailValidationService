@@ -11,6 +11,7 @@ import { CsvUploadDto } from '@/common/dto/csv-upload.dto';
 import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
+import * as process from 'node:process';
 
 @Injectable()
 export class BulkFilesService {
@@ -36,29 +37,46 @@ export class BulkFilesService {
   }
 
   async generateCsv(data: any[], filename: string): Promise<string> {
-    // const filePath = path.join(__dirname, '..', 'uploads', filename);
-    const csvSavePath = `./uploads/csv/validated/${filename}`;
+    const csvSavePath = path.join(process.cwd(), 'uploads', 'csv', 'validated', filename);
     // Ensure the directory exists
     if (!fs.existsSync(path.dirname(csvSavePath))) {
       fs.mkdirSync(path.dirname(csvSavePath), { recursive: true });
     }
+    const LW_keys = [
+      'email_status',
+      'account',
+      'domain',
+      'email_address',
+      'email_sub_status',
+      'domain_age_days',
+      'free_email',
+    ];
+    const csvHeaders = [];
+    Object.keys(data[0]).forEach(key => {
+      if (!LW_keys.includes(key)) {
+        csvHeaders.push({
+          id: key,
+          title: key,
+        });
+      }
+    });
 
     const csvWriter = createObjectCsvWriter({
       path: csvSavePath,
       header: [
-        { id: 'email_address', title: 'Email Address' },
-        { id: 'account', title: 'Account' },
-        { id: 'domain', title: 'Domain' },
-        { id: 'email_status', title: 'Email Status' },
-        { id: 'email_sub_status', title: 'Email Sub Status' },
-        { id: 'domain_age_days', title: 'Domain Age Days' },
-        { id: 'free_email', title: 'Free Email' },
+        ...csvHeaders,
+        { id: 'account', title: 'LW Account' },
+        { id: 'domain', title: 'LW Domain' },
+        { id: 'email_status', title: 'LW Email Status' },
+        { id: 'email_sub_status', title: 'LW Email Sub Status' },
+        { id: 'domain_age_days', title: 'LW Domain Age Days' },
+        { id: 'free_email', title: 'LW Free Email' },
       ],
     });
 
     await csvWriter.writeRecords(data);
 
-    return csvSavePath; // Return the file path for downloading
+    return csvSavePath;
   }
 
   async validateCsvData(file): Promise<any> {
@@ -97,7 +115,7 @@ export class BulkFilesService {
       if (validationErrors.length) {
         return {
           error: true,
-          message: `File Rows Validation Failed at row: ${index + 1} - ${validationErrors}`,
+          message: `File Rows Validation Failed at row: ${index + 1} - ${validationErrors} ${JSON.stringify(rowData)}`,
         };
       }
       rowCount++;

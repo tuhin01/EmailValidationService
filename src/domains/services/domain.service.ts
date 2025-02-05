@@ -359,6 +359,7 @@ export class DomainService {
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
       console.log({ email });
+      let dataStr = "";
       const commands = [
         `EHLO ${mxHost}`,
         `MAIL FROM: <${email}>`,
@@ -371,14 +372,17 @@ export class DomainService {
         socket.write(`${commands[stage++]}\r\n`);
       });
 
-      // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       socket.on('data', (data) => {
-        console.log(data);
-        const dataStr = data.toString();
+        console.log("Data");
+        dataStr = data.toString();
+        console.log(dataStr);
 
         // Function to handle errors and close the connection
         const handleError = (errorType: EmailStatusType) => {
           this.closeSmtpConnection(socket);
+          // Log the error
+          this.winstonLoggerService.error(`verifySmtp() data error - ${email}`, dataStr);
+
           reject(errorType);
         };
 
@@ -391,6 +395,7 @@ export class DomainService {
         }
 
         // Handle specific SMTP error codes
+        // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
         const smtpErrors: Record<string, EmailStatusType> = {
           [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
           [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
@@ -420,6 +425,8 @@ export class DomainService {
         if (match) {
           const responseCode = parseInt(match[1], 10);
           const isTemporaryError = responseCode >= 400 && responseCode < 500;
+          // Log the error
+          this.winstonLoggerService.error(`verifySmtp() - ${email}`, dataStr);
 
           resolve({
             status: EmailStatus.INVALID,
@@ -431,6 +438,9 @@ export class DomainService {
       });
 
       socket.on('close', () => {
+        // Log the error
+        this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
+
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
           reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
@@ -440,6 +450,8 @@ export class DomainService {
       });
 
       socket.on('error', (err) => {
+        // Log the error
+        this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
         this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
@@ -450,6 +462,9 @@ export class DomainService {
       });
 
       socket.on('timeout', () => {
+        // Log the error
+        this.winstonLoggerService.error(`verifySmtp() timeout - ${email}`, dataStr);
+
         this.closeSmtpConnection(socket);
         const error: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
@@ -649,7 +664,6 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-      this.winstonLoggerService.error(`smtpValidation() - ${email}`, JSON.stringify(error));
       await this.saveProcessedErrorEmail(emailStatus, error, email);
 
       return emailStatus;

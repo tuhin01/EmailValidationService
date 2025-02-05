@@ -32,9 +32,7 @@ export class SchedulerService {
 
   @Cron('1 * * * * *')
   public async runFileEmailValidation() {
-    this.logger.debug('Called every min');
     const pendingFiles = await this.bulkFilesService.getPendingBulkFile();
-    console.log({ pendingFiles });
     if (!pendingFiles.length) {
       return;
     }
@@ -135,20 +133,16 @@ export class SchedulerService {
   }
 
   private async __bulkValidate(csvPath: string): Promise<any[]> {
-    const results: any[] = [];
-    return new Promise((resolve, reject) => {
-      if (!csvPath) {
-        reject('No file');
-        return;
-      }
+    if (!csvPath) {
+      throw new Error('No file path provided');
+    }
+    let csvHeaders = [];
+    try {
       // Read the CSV file
-      fs.readFile(csvPath, 'utf8', (err, data) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+      const data = await fs.promises.readFile(csvPath, 'utf8');
 
-        // Parse the CSV content
+      // Parse the CSV content
+      const records = await new Promise<any[]>((resolve, reject) => {
         parse(
           data,
           {
@@ -156,22 +150,38 @@ export class SchedulerService {
             skip_empty_lines: true, // Ignore empty lines
             trim: true, // Trim spaces from values
           },
-          async (err, records) => {
+          (err, records) => {
             if (err) {
               reject(err);
-              return;
+            } else {
+              csvHeaders = records[0];
+              resolve(records);
             }
-            for (const record of records) {
-              const emailResult = await this.domainService.smtpValidation(
-                record.Email,
-              );
-              console.log({ emailResult });
-              results.push(emailResult);
-            }
-            resolve(results);
           },
         );
       });
-    });
+
+      // Validate emails in parallel
+      const validationPromises: Promise<any>[] = records.map(async (record): Promise<any> => {
+        if (!record.Email) {
+          console.warn('Missing Email field in record:', record);
+          return null; // Skip records without an Email field
+        }
+        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email);
+        return {
+          ...record,
+          ...validationResponse,
+        };
+      });
+
+      // Wait for all validations to complete
+      const results: any[] = await Promise.all(validationPromises);
+      // Filter out null results (from records without an Email field)
+      return results.filter((result) => result !== null);
+    } catch (err) {
+      console.error('Error during bulk validation:', err);
+      throw err;
+    }
   }
+
 }
