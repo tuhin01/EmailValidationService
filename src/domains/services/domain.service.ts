@@ -355,7 +355,7 @@ export class DomainService {
 
   async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
     return new Promise((resolve, reject) => {
-      const socket = net.createConnection(587, mxHost);
+      const socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
       console.log({ email });
@@ -372,68 +372,133 @@ export class DomainService {
         socket.write(`${commands[stage++]}\r\n`);
       });
 
+      // socket.on('data', (data) => {
+      //   console.log("Data");
+      //   dataStr = data.toString();
+      //   console.log(dataStr);
+      //
+      //   // Function to handle errors and close the connection
+      //   const handleError = (errorType: EmailStatusType) => {
+      //     this.closeSmtpConnection(socket);
+      //     // Log the error
+      //     this.winstonLoggerService.error(`verifySmtp() data error - ${email}`, dataStr);
+      //
+      //     reject(errorType);
+      //   };
+      //
+      //   if (
+      //     dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
+      //     stage < commands.length
+      //   ) {
+      //     socket.write(`${commands[stage++]}\r\n`);
+      //     return;
+      //   }
+      //
+      //   // Handle specific SMTP error codes
+      //   // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
+      //   const smtpErrors: Record<string, EmailStatusType> = {
+      //     [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
+      //     [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
+      //     [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
+      //   };
+      //
+      //   for (const [code, errorType] of Object.entries(smtpErrors)) {
+      //     if (dataStr.includes(code)) {
+      //       handleError(errorType);
+      //       return;
+      //     }
+      //   }
+      //
+      //   // If all commands have been processed successfully
+      //   if (stage === commands.length) {
+      //     this.closeSmtpConnection(socket);
+      //     resolve({
+      //       status: EmailStatus.VALID,
+      //       reason: EmailReason.EMPTY,
+      //     });
+      //     return;
+      //   }
+      //
+      //   // General Error Handling for 4xx and 5xx Responses
+      //   const smtpErrorRegex = /^([45]\d{2})/;
+      //   const match = dataStr.match(smtpErrorRegex);
+      //   if (match) {
+      //     const responseCode = parseInt(match[1], 10);
+      //     const isTemporaryError = responseCode >= 400 && responseCode < 500;
+      //     // Log the error
+      //     this.winstonLoggerService.error(`verifySmtp() - ${email}`, dataStr);
+      //
+      //     resolve({
+      //       status: EmailStatus.INVALID,
+      //       smtp_code: responseCode,
+      //       reason: EmailReason.MAILBOX_NOT_FOUND,
+      //       retry: isTemporaryError,
+      //     });
+      //   }
+      // });
+
+
+      // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
+      // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
-        console.log("Data");
-        dataStr = data.toString();
-        console.log(dataStr);
-
-        // Function to handle errors and close the connection
-        const handleError = (errorType: EmailStatusType) => {
-          this.closeSmtpConnection(socket);
-          // Log the error
-          this.winstonLoggerService.error(`verifySmtp() data error - ${email}`, dataStr);
-
-          reject(errorType);
-        };
-
-        if (
-          dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
-          stage < commands.length
-        ) {
+        console.log(data);
+        if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
-          return;
-        }
-
-        // Handle specific SMTP error codes
-        // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
-        const smtpErrors: Record<string, EmailStatusType> = {
-          [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
-          [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
-          [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
-        };
-
-        for (const [code, errorType] of Object.entries(smtpErrors)) {
-          if (dataStr.includes(code)) {
-            handleError(errorType);
-            return;
-          }
-        }
-
-        // If all commands have been processed successfully
-        if (stage === commands.length) {
+        } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
           this.closeSmtpConnection(socket);
-          resolve({
+          const error: EmailStatusType = SMTPResponseCode.FIVE_50;
+          reject(error);
+          return;
+        } else if (data.includes(251)) {
+          this.closeSmtpConnection(socket);
+          const smailStatus: EmailStatusType = {
+            status: EmailStatus.VALID,
+            reason: EmailReason.ALIAS,
+          };
+          resolve(smailStatus);
+          return;
+        } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = SMTPResponseCode.FOUR_21;
+          reject(error);
+          return;
+        } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = SMTPResponseCode.FIVE_53;
+          reject(error);
+          return;
+        } else if (data.includes(554)) {
+          this.closeSmtpConnection(socket);
+          const emailStatus: EmailStatusType = {
+            status: EmailStatus.SERVICE_UNAVAILABLE,
+            reason: EmailReason.IP_BLOCKED,
+          };
+          reject(emailStatus);
+          return;
+        } else if (stage === commands.length) {
+          this.closeSmtpConnection(socket);
+          const smailStatus: EmailStatusType = {
             status: EmailStatus.VALID,
             reason: EmailReason.EMPTY,
-          });
+          };
+          resolve(smailStatus);
           return;
-        }
-
-        // General Error Handling for 4xx and 5xx Responses
-        const smtpErrorRegex = /^([45]\d{2})/;
-        const match = dataStr.match(smtpErrorRegex);
-        if (match) {
-          const responseCode = parseInt(match[1], 10);
-          const isTemporaryError = responseCode >= 400 && responseCode < 500;
-          // Log the error
-          this.winstonLoggerService.error(`verifySmtp() - ${email}`, dataStr);
-
-          resolve({
-            status: EmailStatus.INVALID,
-            smtp_code: responseCode,
-            reason: EmailReason.MAILBOX_NOT_FOUND,
-            retry: isTemporaryError,
-          });
+        } else {
+          const errorData = data.toString();
+          // When no other condition is true, handle it for all other codes
+          // Response code starts with "4" - Temporary error, and we should retry later
+          // Response code starts with "5" - Permanent error and must not retry
+          if (errorData.startsWith('4') || errorData.startsWith('5')) {
+            const responseCode: number = parseInt(errorData.substring(0, 3));
+            const smailStatus: EmailStatusType = {
+              status: EmailStatus.INVALID,
+              smtp_code: responseCode,
+              reason: EmailReason.MAILBOX_NOT_FOUND,
+              retry: errorData.startsWith('4'),
+            };
+            resolve(smailStatus);
+            return;
+          }
         }
       });
 

@@ -16,6 +16,8 @@ export enum EmailStatus {
   VALID = 'valid',
   /** Domain does not exist or is unreachable */
   INVALID_DOMAIN = 'invalid_domain',
+  /** Domain does not exist or is unreachable */
+  SERVICE_UNAVAILABLE = 'service_unavailable',
   /** The domain accepts all emails without validation */
   CATCH_ALL = 'catch-all',
   /** The email is a known spamtrap */
@@ -34,6 +36,8 @@ export enum EmailReason {
   DOMAIN_WHOIS_PARSE_ERROR = 'domain_whois_data_parse_error',
   DOES_NOT_ACCEPT_MAIL = 'does_not_accept_mail',
   ROLE_BASED = 'role_based',
+  IP_BLOCKED = 'ip_blocked',
+  ALIAS = 'alias_email',
   DISPOSABLE_DOMAIN = 'disposable_domain_temporary_email',
   POSSIBLE_TYPO = 'possible_typo',
   MAILBOX_NOT_FOUND = 'mailbox_not_found',
