@@ -1,11 +1,6 @@
 import * as net from 'node:net';
 
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
 import * as dns from 'dns';
 import * as parseWhois from 'parse-whois';
@@ -27,7 +22,7 @@ import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
-  EmailValidationResponseType,
+  EmailValidationResponseType, ipBlockedStringsArray,
   SMTPResponseCode,
 } from '@/common/utility/email-status-type';
 import freeEmailProviderList from '@/common/utility/free-email-provider-list';
@@ -359,7 +354,7 @@ export class DomainService {
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
       console.log({ email });
-      let dataStr = "";
+      let dataStr = '';
       const commands = [
         `EHLO ${mxHost}`,
         `MAIL FROM: <${email}>`,
@@ -446,7 +441,20 @@ export class DomainService {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
           this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FIVE_50;
+          let error: EmailStatusType = { reason: undefined, status: undefined };
+          
+          // Check if 550 response has any of the strings from 'ipBlockedStringsArray'
+          for (const str of ipBlockedStringsArray) {
+            if (data.includes(str)) {
+              error.status = EmailStatus.SERVICE_UNAVAILABLE;
+              error.reason = EmailReason.IP_BLOCKED;
+              error.smtp_code = 550;
+              reject(error);
+              return;
+            }
+          }
+
+          error = SMTPResponseCode.FIVE_50;
           reject(error);
           return;
         } else if (data.includes(251)) {
@@ -472,6 +480,7 @@ export class DomainService {
           const emailStatus: EmailStatusType = {
             status: EmailStatus.SERVICE_UNAVAILABLE,
             reason: EmailReason.IP_BLOCKED,
+            smtp_code: 554,
           };
           reject(emailStatus);
           return;
@@ -504,13 +513,15 @@ export class DomainService {
 
       socket.on('close', () => {
         // Log the error
-        this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
+        if (dataStr) {
+          this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
 
-        const error: EmailStatusType = {
-          status: EmailStatus.INVALID,
-          reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
-        };
-        reject(error);
+          const error: EmailStatusType = {
+            status: EmailStatus.INVALID,
+            reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+          };
+          reject(error);
+        }
         return;
       });
 

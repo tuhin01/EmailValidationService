@@ -80,3 +80,7 @@ export type EmailStatusType = {
   retry?: boolean;
   smtp_code?: number;
 };
+
+export const ipBlockedStringsArray = [
+  'permanently deferred', 'Spamhaus'
+];
