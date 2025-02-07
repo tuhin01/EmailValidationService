@@ -35,6 +35,7 @@ export enum EmailReason {
   DOMAIN_WHOIS_DATA_NOT_FOUND = 'domain_whois_data_not_found',
   DOMAIN_WHOIS_PARSE_ERROR = 'domain_whois_data_parse_error',
   DOES_NOT_ACCEPT_MAIL = 'does_not_accept_mail',
+  NO_MX_FOUND = 'mx_record_not_found',
   ROLE_BASED = 'role_based',
   IP_BLOCKED = 'ip_blocked',
   ALIAS = 'alias_email',

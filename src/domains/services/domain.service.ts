@@ -307,7 +307,7 @@ export class DomainService {
       if (mxRecords.length === 0) {
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
-          reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+          reason: EmailReason.NO_MX_FOUND,
         };
         reject(error);
 
@@ -599,6 +599,7 @@ export class DomainService {
   async domainTypoCheck(domain) {
     return new Promise((resolve, reject) => {
       const domainHasTypo = new DomainTypoChecker().check(domain);
+      console.log(domainHasTypo);
       if (domainHasTypo) {
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
@@ -745,7 +746,7 @@ export class DomainService {
       // If the email is a free email OR Error reasons
       // DO NOT confirm the domain has issues. Other emails
       // from the same domain might be valid.
-      // So we do not saveBulkFile the domain into error_domains
+      // So we do not save the domain into error_domains
       const skipReasons = [
         EmailReason.ROLE_BASED,
         EmailReason.INVALID_EMAIL_FORMAT,
