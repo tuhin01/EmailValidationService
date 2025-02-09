@@ -16,8 +16,7 @@ class DomainTypoChecker {
       }
     }
 
-    // Suggest correction only if the typo is within an acceptable range (e.g., distance <= 2)
-    console.log({ closestMatch });
+    // Suggest correction only if the typo is within an acceptable range (e.g., distance < 2)
     if (smallestDistance < 2) {
       return smallestDistance;
     }

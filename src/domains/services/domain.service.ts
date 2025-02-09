@@ -35,6 +35,7 @@ import { Domain } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 
 @Injectable()
 export class DomainService {
@@ -280,7 +281,6 @@ export class DomainService {
           dbDomain.created_at,
         );
         if (dayPassedSinceLastMxCheck < MX_RECORD_CHECK_DAY_GAP) {
-          console.log('NOT Saving MX...');
           resolve(dbDomain.mx_record_host);
           return;
         }
@@ -314,7 +314,6 @@ export class DomainService {
 
       // If the domain is already saved but mx_record is new then we update our record
       if (dbDomain) {
-        console.log('Updating MX...');
         dbDomain.mx_record_host = latest_mx_record;
         await dbDomain.save();
       }
@@ -324,14 +323,13 @@ export class DomainService {
   }
 
   async catchAllCheck(email, mxHost) {
-    console.log('check catch all...');
+    console.log({ email });
     return new Promise(async (resolve, reject) => {
       try {
         const isCatchAllValid: EmailStatusType = await this.verifySmtp(
           email,
           mxHost,
         );
-        console.log({ isCatchAllValid });
         if (isCatchAllValid.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
             status: EmailStatus.CATCH_ALL,
@@ -353,7 +351,6 @@ export class DomainService {
       const socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
-      console.log({ email });
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
       const commands = [
@@ -606,7 +603,6 @@ export class DomainService {
   async domainTypoCheck(domain) {
     return new Promise((resolve, reject) => {
       const domainHasTypo = new DomainTypoChecker().check(domain);
-      console.log(domainHasTypo);
       if (domainHasTypo) {
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
@@ -708,7 +704,7 @@ export class DomainService {
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
-        const catchAllEmail = `${CATCH_ALL_EMAIL}@${domain}`;
+        const catchAllEmail = `${randomStringGenerator()}@${domain}`;
         await this.catchAllCheck(catchAllEmail, mxRecordHost);
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
@@ -727,7 +723,6 @@ export class DomainService {
         dbDomain.domain_age_days = domainInfo.domain_age_days;
         await dbDomain.save();
       }
-      console.log({ emailStatus });
       await this.saveProcessedEmail(emailStatus);
       // If everything goes well, then return the emailStatus
       return emailStatus;

@@ -18,6 +18,7 @@ import { DomainService } from '@/domains/services/domain.service';
 import { InjectQueue } from '@nestjs/bull';
 import { BULK_EMAIL_SEND } from '@/common/utility/constant';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
+import Bottleneck from 'bottleneck';
 
 @Injectable()
 export class SchedulerService {
@@ -65,7 +66,6 @@ export class SchedulerService {
         [EmailStatus.VALID]: [],
       };
       results.forEach((email: EmailValidationResponseType) => {
-        console.log(email.email_status);
         if (email.email_status === EmailStatus.VALID) {
           fileWithStatusTypes[EmailStatus.VALID].push(email);
         } else if (email.email_status === EmailStatus.CATCH_ALL) {
@@ -105,7 +105,7 @@ export class SchedulerService {
         }
       });
       // const randomString = randomStringGenerator();
-      const folderName = firstPendingFIle.file_path.split("/").at(-1).replace(".csv", "");
+      const folderName = firstPendingFIle.file_path.split('/').at(-1).replace('.csv', '');
 
       for (const fileType of Object.keys(fileWithStatusTypes)) {
         const fileName = folderName + '/' + fileType + '.csv';
@@ -199,6 +199,9 @@ export class SchedulerService {
       throw new Error('No file path provided');
     }
     let csvHeaders = [];
+    // ✅ Bottleneck for rate limiting (CommonJS compatible)
+    const limiter = new Bottleneck({ maxConcurrent: 5 });
+
     try {
       // Read the CSV file
       const data = await fs.promises.readFile(csvPath, 'utf8');
@@ -224,7 +227,7 @@ export class SchedulerService {
       });
 
       // Validate emails in parallel
-      const validationPromises: Promise<any>[] = records.map(async (record): Promise<any> => {
+      const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
         if (!record.Email) {
           console.warn('Missing Email field in record:', record);
           return null; // Skip records without an Email field
@@ -234,12 +237,13 @@ export class SchedulerService {
           ...record,
           ...validationResponse,
         };
-      });
+      }));
 
       // Wait for all validations to complete
-      const results: any[] = await Promise.all(validationPromises);
-      // Filter out null results (from records without an Email field)
-      return results.filter((result) => result !== null);
+      const results = await Promise.allSettled(validationPromises);
+      return results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<any>).value);
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;
