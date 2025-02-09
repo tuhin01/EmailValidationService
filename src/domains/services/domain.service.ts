@@ -439,10 +439,15 @@ export class DomainService {
         console.log(data);
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
+        } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
+          this.closeSmtpConnection(socket);
+          const smailStatus: EmailStatusType = SMTPResponseCode.TWO_51;
+          resolve(smailStatus);
+          return;
         } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
           this.closeSmtpConnection(socket);
           let error: EmailStatusType = { reason: undefined, status: undefined };
-          
+
           // Check if 550 response has any of the strings from 'ipBlockedStringsArray'
           for (const str of ipBlockedStringsArray) {
             if (data.includes(str)) {
@@ -457,14 +462,6 @@ export class DomainService {
           error = SMTPResponseCode.FIVE_50;
           reject(error);
           return;
-        } else if (data.includes(251)) {
-          this.closeSmtpConnection(socket);
-          const smailStatus: EmailStatusType = {
-            status: EmailStatus.VALID,
-            reason: EmailReason.ALIAS,
-          };
-          resolve(smailStatus);
-          return;
         } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FOUR_21;
@@ -475,13 +472,9 @@ export class DomainService {
           const error: EmailStatusType = SMTPResponseCode.FIVE_53;
           reject(error);
           return;
-        } else if (data.includes(554)) {
+        } else if (data.includes(SMTPResponseCode.FIVE_54.smtp_code)) {
           this.closeSmtpConnection(socket);
-          const emailStatus: EmailStatusType = {
-            status: EmailStatus.SERVICE_UNAVAILABLE,
-            reason: EmailReason.IP_BLOCKED,
-            smtp_code: 554,
-          };
+          const emailStatus: EmailStatusType = SMTPResponseCode.FIVE_54;
           reject(emailStatus);
           return;
         } else if (stage === commands.length) {
@@ -505,6 +498,8 @@ export class DomainService {
               reason: EmailReason.MAILBOX_NOT_FOUND,
               retry: errorData.startsWith('4'),
             };
+            this.winstonLoggerService.error(`verifySmtp() data - ${email}`, dataStr);
+
             resolve(smailStatus);
             return;
           }

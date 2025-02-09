@@ -14,9 +14,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
-    {
-      logger: new WinstonLoggerService(),
-    },
+    // {
+    //   logger: new WinstonLoggerService(),
+    // },
   );
   // Register the multipart plugin
   await app.register(multipart);

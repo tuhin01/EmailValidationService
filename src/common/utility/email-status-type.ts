@@ -38,7 +38,7 @@ export enum EmailReason {
   NO_MX_FOUND = 'mx_record_not_found',
   ROLE_BASED = 'role_based',
   IP_BLOCKED = 'ip_blocked',
-  ALIAS = 'alias_email',
+  ALIAS = 'alias_or_forwarded_email',
   DISPOSABLE_DOMAIN = 'disposable_domain_temporary_email',
   POSSIBLE_TYPO = 'possible_typo',
   MAILBOX_NOT_FOUND = 'mailbox_not_found',
@@ -54,6 +54,12 @@ export const SMTPResponseCode = {
     reason: EmailReason.EMPTY,
     retry: false,
   },
+  TWO_51: {
+    smtp_code: 251,
+    status: EmailStatus.VALID,
+    reason: EmailReason.ALIAS,
+    retry: false,
+  },
   FIVE_50: {
     smtp_code: 550,
     status: EmailStatus.INVALID,
@@ -64,6 +70,12 @@ export const SMTPResponseCode = {
     smtp_code: 553,
     status: EmailStatus.UNKNOWN,
     reason: EmailReason.UNVERIFIABLE_EMAIL,
+    retry: false,
+  },
+  FIVE_54: {
+    smtp_code: 554,
+    status: EmailStatus.SERVICE_UNAVAILABLE,
+    reason: EmailReason.IP_BLOCKED,
     retry: false,
   },
   FOUR_21: {
