@@ -201,8 +201,8 @@ export class SchedulerService {
     let csvHeaders = [];
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 5, // Adjust based on your testing
-      minTime: 200, // 200ms delay between requests (adjustable)
+      maxConcurrent: 4, // Adjust based on your testing
+      minTime: 250, // 200ms delay between requests (adjustable)
     });
 
     try {
