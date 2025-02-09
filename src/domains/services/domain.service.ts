@@ -354,10 +354,11 @@ export class DomainService {
       socket.setEncoding('ascii');
       socket.setTimeout(5000);
       console.log({ email });
+      const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
       const commands = [
         `EHLO ${mxHost}`,
-        `MAIL FROM: <${email}>`,
+        `MAIL FROM: <${fromEmail}>`,
         `RCPT TO: <${email}>`,
       ];
 

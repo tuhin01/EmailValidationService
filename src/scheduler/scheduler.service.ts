@@ -10,6 +10,7 @@ import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
 import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import {
+  EmailReason,
   EmailStatus,
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
@@ -47,30 +48,86 @@ export class SchedulerService {
       );
 
       const results = await this.__bulkValidate(firstPendingFIle.file_path);
+      let invalid_email_count = 0;
+      let do_not_mail_count = 0;
+      let unknown_count = 0;
+      const fileWithStatusTypes = {
+        [EmailReason.ROLE_BASED]: [],
+        [EmailReason.UNVERIFIABLE_EMAIL]: [],
+        [EmailReason.POSSIBLE_TYPO]: [],
+        [EmailReason.DISPOSABLE_DOMAIN]: [],
+        [EmailReason.MAILBOX_NOT_FOUND]: [],
+        [EmailReason.DOMAIN_NOT_FOUND]: [],
+        [EmailReason.SMTP_TIMEOUT]: [],
+        [EmailReason.IP_BLOCKED]: [],
+        [EmailStatus.CATCH_ALL]: [],
+        [EmailStatus.INVALID_DOMAIN]: [],
+        [EmailStatus.SPAMTRAP]: [],
+        [EmailStatus.VALID]: [],
+      };
+      results.forEach((email: EmailValidationResponseType) => {
+        if (email.email_status === EmailStatus.VALID) {
+          fileWithStatusTypes[EmailStatus.VALID].push(email);
+        } else if (email.email_status === EmailStatus.CATCH_ALL) {
+          fileWithStatusTypes[EmailStatus.CATCH_ALL].push(email);
+        } else if (email.email_status === EmailStatus.SPAMTRAP) {
+          fileWithStatusTypes[EmailStatus.SPAMTRAP].push(email);
+        } else if (email.email_status === EmailStatus.INVALID_DOMAIN) {
+          fileWithStatusTypes[EmailStatus.INVALID_DOMAIN].push(email);
+        } else if (email.email_sub_status === EmailReason.ROLE_BASED) {
+          fileWithStatusTypes[EmailReason.ROLE_BASED].push(email);
+        } else if (email.email_sub_status === EmailReason.UNVERIFIABLE_EMAIL) {
+          fileWithStatusTypes[EmailReason.UNVERIFIABLE_EMAIL].push(email);
+        } else if (email.email_sub_status === EmailReason.POSSIBLE_TYPO) {
+          fileWithStatusTypes[EmailReason.POSSIBLE_TYPO].push(email);
+        } else if (email.email_sub_status === EmailReason.DISPOSABLE_DOMAIN) {
+          fileWithStatusTypes[EmailReason.DISPOSABLE_DOMAIN].push(email);
+        } else if (email.email_sub_status === EmailReason.MAILBOX_NOT_FOUND) {
+          fileWithStatusTypes[EmailReason.MAILBOX_NOT_FOUND].push(email);
+        } else if (email.email_sub_status === EmailReason.DOMAIN_NOT_FOUND) {
+          fileWithStatusTypes[EmailReason.DOMAIN_NOT_FOUND].push(email);
+        } else if (email.email_sub_status === EmailReason.SMTP_TIMEOUT) {
+          fileWithStatusTypes[EmailReason.SMTP_TIMEOUT].push(email);
+        }
 
-      const fileName = firstPendingFIle.id + randomStringGenerator() + '.csv';
-      const savedPath = await this.bulkFilesService.generateCsv(
+        if (
+          email.email_status === EmailStatus.INVALID ||
+          email.email_status === EmailStatus.INVALID_DOMAIN
+        ) {
+          invalid_email_count++;
+        } else if (email.email_status === EmailStatus.UNKNOWN) {
+          unknown_count++;
+        } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
+          do_not_mail_count++;
+        }
+      });
+      const randomString = randomStringGenerator() + '-';
+      for (const fileType of Object.keys(fileWithStatusTypes)) {
+        const fileName = firstPendingFIle.id + randomString + fileType + '.csv';
+        const csvData: [] = fileWithStatusTypes[fileType];
+        if (csvData.length) {
+          await this.bulkFilesService.generateCsv(
+            csvData,
+            fileName,
+          );
+        }
+      }
+
+      // All data in one file.
+      await this.bulkFilesService.generateCsv(
         results,
-        fileName,
+        randomString + 'combined.csv',
       );
 
-      const {
-        valid_email_count,
-        invalid_email_count,
-        unknown_count,
-        catch_all_count,
-        do_not_mail_count,
-        spam_trap_count,
-      } = this.__prepareValidationResult(results);
       const completeStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.COMPLETE,
-        validation_file_path: savedPath,
-        valid_email_count,
+        validation_file_path: 'savedPath',
+        valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
         invalid_email_count,
         unknown_count,
-        catch_all_count,
+        catch_all_count: fileWithStatusTypes[EmailStatus.CATCH_ALL].length,
         do_not_mail_count,
-        spam_trap_count,
+        spam_trap_count: fileWithStatusTypes[EmailStatus.SPAMTRAP].length,
       };
       await this.bulkFilesService.updateBulkFile(
         firstPendingFIle.id,
@@ -79,15 +136,15 @@ export class SchedulerService {
       console.log('File Status updated to - COMPLETE');
       console.log('Done');
 
-      const emailData = {
-        to: `Tuhin Pathan <tuhin.world@gmail.com>`,
-        subject: 'Email validation is complete',
-        template: 'welcome',
-        context: { 'name': 'John Doe' },
-      };
-      await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
-        attempts: 3, // Retry 3 times if failed
-      });
+      // const emailData = {
+      //   to: `Tuhin Pathan <tuhin.world@gmail.com>`,
+      //   subject: 'Email validation is complete',
+      //   template: 'welcome',
+      //   context: { 'name': 'John Doe' },
+      // };
+      // await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
+      //   attempts: 3, // Retry 3 times if failed
+      // });
 
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
