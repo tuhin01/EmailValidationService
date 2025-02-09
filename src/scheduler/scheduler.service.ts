@@ -46,7 +46,6 @@ export class SchedulerService {
         firstPendingFIle.id,
         processingStatus,
       );
-
       const results = await this.__bulkValidate(firstPendingFIle.file_path);
       let invalid_email_count = 0;
       let do_not_mail_count = 0;
@@ -66,6 +65,7 @@ export class SchedulerService {
         [EmailStatus.VALID]: [],
       };
       results.forEach((email: EmailValidationResponseType) => {
+        console.log(email.email_status);
         if (email.email_status === EmailStatus.VALID) {
           fileWithStatusTypes[EmailStatus.VALID].push(email);
         } else if (email.email_status === EmailStatus.CATCH_ALL) {
@@ -95,15 +95,20 @@ export class SchedulerService {
           email.email_status === EmailStatus.INVALID_DOMAIN
         ) {
           invalid_email_count++;
-        } else if (email.email_status === EmailStatus.UNKNOWN) {
+        } else if (
+          email.email_status === EmailStatus.UNKNOWN ||
+          email.email_sub_status === EmailReason.IP_BLOCKED
+        ) {
           unknown_count++;
         } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
           do_not_mail_count++;
         }
       });
-      const randomString = randomStringGenerator() + '-';
+      // const randomString = randomStringGenerator();
+      const folderName = firstPendingFIle.file_path.split("/").at(-1).replace(".csv", "");
+
       for (const fileType of Object.keys(fileWithStatusTypes)) {
-        const fileName = firstPendingFIle.id + randomString + fileType + '.csv';
+        const fileName = folderName + '/' + fileType + '.csv';
         const csvData: [] = fileWithStatusTypes[fileType];
         if (csvData.length) {
           await this.bulkFilesService.generateCsv(
@@ -116,12 +121,12 @@ export class SchedulerService {
       // All data in one file.
       await this.bulkFilesService.generateCsv(
         results,
-        randomString + 'combined.csv',
+        folderName + '/combined.csv',
       );
-
+      console.log(results);
       const completeStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.COMPLETE,
-        validation_file_path: 'savedPath',
+        validation_file_path: './uploads/csv/validated/' + folderName,
         valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
         invalid_email_count,
         unknown_count,

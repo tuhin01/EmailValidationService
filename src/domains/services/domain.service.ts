@@ -437,7 +437,7 @@ export class DomainService {
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
-        console.log(data);
+        // console.log(data);
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
@@ -727,7 +727,7 @@ export class DomainService {
         dbDomain.domain_age_days = domainInfo.domain_age_days;
         await dbDomain.save();
       }
-
+      console.log({ emailStatus });
       await this.saveProcessedEmail(emailStatus);
       // If everything goes well, then return the emailStatus
       return emailStatus;
