@@ -199,8 +199,11 @@ export class SchedulerService {
       throw new Error('No file path provided');
     }
     let csvHeaders = [];
-    // ✅ Bottleneck for rate limiting (CommonJS compatible)
-    const limiter = new Bottleneck({ maxConcurrent: 5 });
+    // Bottleneck for rate limiting (CommonJS compatible)
+    const limiter = new Bottleneck({
+      maxConcurrent: 5, // Adjust based on your testing
+      minTime: 200, // 200ms delay between requests (adjustable)
+    });
 
     try {
       // Read the CSV file

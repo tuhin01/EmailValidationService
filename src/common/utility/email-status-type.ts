@@ -18,6 +18,8 @@ export enum EmailStatus {
   INVALID_DOMAIN = 'invalid_domain',
   /** Domain does not exist or is unreachable */
   SERVICE_UNAVAILABLE = 'service_unavailable',
+  /** mailbox unavailable (e.g., mailbox busy or temporarily blocked for policy reasons)*/
+  TEMPORARILY_UNAVAILABLE = 'service_temporarily_unavailable',
   /** The domain accepts all emails without validation */
   CATCH_ALL = 'catch-all',
   /** The email is a known spamtrap */
@@ -66,6 +68,24 @@ export const SMTPResponseCode = {
     reason: EmailReason.MAILBOX_NOT_FOUND,
     retry: false,
   },
+  FIVE_51: {
+    smtp_code: 551,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
+  FIVE_05: {
+    smtp_code: 505,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
+  FIVE_00: {
+    smtp_code: 500,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
   FIVE_53: {
     smtp_code: 553,
     status: EmailStatus.UNKNOWN,
@@ -75,6 +95,18 @@ export const SMTPResponseCode = {
   FIVE_54: {
     smtp_code: 554,
     status: EmailStatus.SERVICE_UNAVAILABLE,
+    reason: EmailReason.IP_BLOCKED,
+    retry: false,
+  },
+  FOUR_51: {
+    smtp_code: 451,
+    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    reason: EmailReason.IP_BLOCKED,
+    retry: false,
+  },
+  FOUR_50: {
+    smtp_code: 450,
+    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
     reason: EmailReason.IP_BLOCKED,
     retry: false,
   },
@@ -94,5 +126,5 @@ export type EmailStatusType = {
 };
 
 export const ipBlockedStringsArray = [
-  'permanently deferred', 'Spamhaus'
+  'permanently deferred', 'Spamhaus', 'cannot find your reverse hostname'
 ];

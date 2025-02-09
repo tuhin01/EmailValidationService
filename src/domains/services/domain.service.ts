@@ -10,7 +10,6 @@ import * as whois from 'whois';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
 import {
   CATCH_ALL_CHECK_DAY_GAP,
-  CATCH_ALL_EMAIL,
   ERROR_DOMAIN_CHECK_DAY_GAP,
   MX_RECORD_CHECK_DAY_GAP,
   PROCESSED_EMAIL_CHECK_DAY_GAP,
@@ -330,6 +329,7 @@ export class DomainService {
           email,
           mxHost,
         );
+        console.log({ isCatchAllValid });
         if (isCatchAllValid.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
             status: EmailStatus.CATCH_ALL,
@@ -434,7 +434,7 @@ export class DomainService {
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
-        // console.log(data);
+        console.log(data);
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
@@ -442,7 +442,13 @@ export class DomainService {
           const smailStatus: EmailStatusType = SMTPResponseCode.TWO_51;
           resolve(smailStatus);
           return;
-        } else if (data.includes(SMTPResponseCode.FIVE_50.smtp_code)) {
+        } else if (
+          data.includes(SMTPResponseCode.FIVE_50.smtp_code) ||
+          data.includes(SMTPResponseCode.FIVE_05.smtp_code) ||
+          data.includes(SMTPResponseCode.FIVE_51.smtp_code) ||
+          data.includes(SMTPResponseCode.FIVE_00.smtp_code) ||
+          data.includes(SMTPResponseCode.FOUR_50.smtp_code)
+        ) {
           this.closeSmtpConnection(socket);
           let error: EmailStatusType = { reason: undefined, status: undefined };
 
@@ -451,7 +457,6 @@ export class DomainService {
             if (data.includes(str)) {
               error.status = EmailStatus.SERVICE_UNAVAILABLE;
               error.reason = EmailReason.IP_BLOCKED;
-              error.smtp_code = 550;
               reject(error);
               return;
             }
@@ -463,6 +468,11 @@ export class DomainService {
         } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FOUR_21;
+          reject(error);
+          return;
+        } else if (data.includes(SMTPResponseCode.FOUR_51.smtp_code)) {
+          this.closeSmtpConnection(socket);
+          const error: EmailStatusType = SMTPResponseCode.FOUR_51;
           reject(error);
           return;
         } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
@@ -483,6 +493,7 @@ export class DomainService {
           };
           resolve(smailStatus);
           return;
+
         } else {
           const errorData = data.toString();
           // When no other condition is true, handle it for all other codes
@@ -496,9 +507,9 @@ export class DomainService {
               reason: EmailReason.MAILBOX_NOT_FOUND,
               retry: errorData.startsWith('4'),
             };
-            this.winstonLoggerService.error(`verifySmtp() data - ${email}`, dataStr);
+            this.winstonLoggerService.error(`verifySmtp() else block - ${email}`, dataStr);
 
-            resolve(smailStatus);
+            reject(smailStatus);
             return;
           }
         }
@@ -704,7 +715,7 @@ export class DomainService {
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
-        const catchAllEmail = `${randomStringGenerator()}@${domain}`;
+        const catchAllEmail = `${randomStringGenerator()}${randomStringGenerator()}@${domain}`;
         await this.catchAllCheck(catchAllEmail, mxRecordHost);
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
