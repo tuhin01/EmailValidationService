@@ -357,7 +357,7 @@ export class DomainService {
         `EHLO ${mxHost}`,
         `MAIL FROM: <${fromEmail}>`,
         `RCPT TO: <${email}>`,
-        `QUIT`
+        `QUIT`,
       ];
 
       let stage = 0;
@@ -371,7 +371,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-
+        console.log(data);
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
@@ -453,15 +453,17 @@ export class DomainService {
       });
 
       socket.on('close', () => {
-        // Log the error
+        // Log the error, if there are any
         if (dataStr) {
-          this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
-
-          const error: EmailStatusType = {
-            status: EmailStatus.INVALID,
-            reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
-          };
-          reject(error);
+          const responseCode = parseInt(dataStr.substring(0, 3));
+          if (responseCode >= 400) {
+            this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
+            const error: EmailStatusType = {
+              status: EmailStatus.INVALID,
+              reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+            };
+            reject(error);
+          }
         }
         return;
       });
