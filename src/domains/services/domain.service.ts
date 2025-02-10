@@ -395,6 +395,7 @@ export class DomainService {
         // }
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
+          // Check if the socket is writable before writing
           if (socket.writable) {
             socket.write(`${commands[stage++]}\r\n`);
           }
@@ -457,19 +458,18 @@ export class DomainService {
 
         } else {
           const errorData = data.toString();
+          if (errorData) {
+            this.winstonLoggerService.error(`verifySmtp() else block - ${email}`, dataStr);
+          }
           // When no other condition is true, handle it for all other codes
           // Response code starts with "4" - Temporary error, and we should retry later
           // Response code starts with "5" - Permanent error and must not retry
-          if (errorData.startsWith('4') || errorData.startsWith('5')) {
-            const responseCode: number = parseInt(errorData.substring(0, 3));
-            const smailStatus: EmailStatusType = {
-              status: EmailStatus.INVALID,
-              smtp_code: responseCode,
-              reason: EmailReason.MAILBOX_NOT_FOUND,
-              retry: errorData.startsWith('4'),
-            };
-            this.winstonLoggerService.error(`verifySmtp() else block - ${email}`, dataStr);
-
+          if(errorData.startsWith('4')) {
+            const smailStatus: EmailStatusType = SMTPResponseCode.FOUR_51;
+            reject(smailStatus);
+            return;
+          } else if(errorData.startsWith('5')) {
+            const smailStatus: EmailStatusType = SMTPResponseCode.FIVE_50;
             reject(smailStatus);
             return;
           }
