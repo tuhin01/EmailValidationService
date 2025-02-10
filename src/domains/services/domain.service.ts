@@ -464,11 +464,11 @@ export class DomainService {
           // When no other condition is true, handle it for all other codes
           // Response code starts with "4" - Temporary error, and we should retry later
           // Response code starts with "5" - Permanent error and must not retry
-          if(errorData.startsWith('4')) {
+          if (errorData.startsWith('4')) {
             const smailStatus: EmailStatusType = SMTPResponseCode.FOUR_51;
             reject(smailStatus);
             return;
-          } else if(errorData.startsWith('5')) {
+          } else if (errorData.startsWith('5')) {
             const smailStatus: EmailStatusType = SMTPResponseCode.FIVE_50;
             reject(smailStatus);
             return;
@@ -481,7 +481,6 @@ export class DomainService {
         if (dataStr) {
           const responseCode = parseInt(dataStr.substring(0, 3));
           if (responseCode >= 400) {
-            this.winstonLoggerService.error(`verifySmtp() close - ${email}`, dataStr);
             const error: EmailStatusType = {
               status: EmailStatus.INVALID,
               reason: EmailReason.DOES_NOT_ACCEPT_MAIL,

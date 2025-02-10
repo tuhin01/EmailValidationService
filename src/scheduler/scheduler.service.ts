@@ -59,6 +59,7 @@ export class SchedulerService {
         [EmailReason.MAILBOX_NOT_FOUND]: [],
         [EmailReason.DOMAIN_NOT_FOUND]: [],
         [EmailReason.SMTP_TIMEOUT]: [],
+        [EmailReason.DOES_NOT_ACCEPT_MAIL]: [],
         [EmailReason.IP_BLOCKED]: [],
         [EmailStatus.CATCH_ALL]: [],
         [EmailStatus.SPAMTRAP]: [],
@@ -85,6 +86,8 @@ export class SchedulerService {
           fileWithStatusTypes[EmailReason.SMTP_TIMEOUT].push(email);
         } else if (email.email_sub_status === EmailReason.IP_BLOCKED) {
           fileWithStatusTypes[EmailReason.IP_BLOCKED].push(email);
+        } else if (email.email_sub_status === EmailReason.DOES_NOT_ACCEPT_MAIL) {
+          fileWithStatusTypes[EmailReason.DOES_NOT_ACCEPT_MAIL].push(email);
         }
 
         if (
