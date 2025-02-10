@@ -27,7 +27,7 @@ export class BulkFilesController {
   })
   @UseGuards(JwtAuthGuard)
   @Post('upload')
-  async uploadCsv(@Req() req: FastifyRequest, @Body() payload: any) {
+  async uploadCsv(@Req() req: any, @Body() payload: any) {
     if (!req.isMultipart()) {
       throw new HttpException(
         `Content-Type is not properly set.`,
@@ -63,6 +63,7 @@ export class BulkFilesController {
       // After saving the file locally, saveBulkFile it's location in DB
       const bulkFile: CreateBulkFileDto = {
         file_path: csvSavePath,
+        user_id: req.user.id,
         total_email_count: isValid.total_emails,
         file_status: BulkFileStatus.PENDING,
         valid_email_count: null,

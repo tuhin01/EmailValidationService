@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { minutes, Throttle } from '@nestjs/throttler';
 
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
@@ -14,8 +14,9 @@ export class DomainsController {
   })
   @Post('validate')
   @UseGuards(JwtAuthGuard)
-  async validate(@Body() emailDto: EmailDto) {
+  async validate(@Req() req: any, @Body() emailDto: EmailDto) {
     const { email } = emailDto;
-    return await this.domainService.smtpValidation(email);
+    const user = req.user;
+    return await this.domainService.smtpValidation(email, user);
   }
 }

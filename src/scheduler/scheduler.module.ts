@@ -6,10 +6,11 @@ import { DomainsModule } from '@/domains/domains.module';
 import { SchedulerService } from '@/scheduler/scheduler.service';
 import { MailerModule } from '@/mailer/mailer.module';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
+import { UsersModule } from '@/users/users.module';
 
 @Module({
   providers: [SchedulerService],
-  imports: [ScheduleModule.forRoot(), BulkFilesModule, DomainsModule, MailerModule, WinstonLoggerModule],
+  imports: [ScheduleModule.forRoot(), BulkFilesModule, DomainsModule, UsersModule, MailerModule, WinstonLoggerModule],
 })
 export class SchedulerModule {
 }

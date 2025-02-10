@@ -16,6 +16,12 @@ export class ProcessedEmail extends BaseEntity {
   @Index({ unique: true })
   email_address: string;
 
+  @Column({ type: 'int', nullable: true })
+  user_id: number;
+
+  @Column({ type: 'int', nullable: true })
+  bulk_file_id: number;
+
   @Column({ type: 'varchar', length: 255 })
   account: string;
 

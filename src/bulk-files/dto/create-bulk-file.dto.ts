@@ -9,6 +9,10 @@ export class CreateBulkFileDto {
 
   @IsNumber()
   @IsNotEmpty()
+  readonly user_id: number;
+
+  @IsNumber()
+  @IsNotEmpty()
   total_email_count: number;
 
   @IsString()

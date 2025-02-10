@@ -36,6 +36,7 @@ import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { User } from '@/users/entities/user.entity';
 
 @Injectable()
 export class DomainService {
@@ -113,13 +114,15 @@ export class DomainService {
     });
   }
 
-  async saveProcessedEmail(processedEmail: EmailValidationResponseType) {
+  async saveProcessedEmail(processedEmail: EmailValidationResponseType, user, bulkFileId = null) {
     const existingDomain = await ProcessedEmail.findOneBy({
       email_address: processedEmail.email_address,
     });
     if (!existingDomain) {
       const dbProcessedEmail: ProcessedEmail = ProcessedEmail.create({
         ...processedEmail,
+        user_id: user.id,
+        bulk_file_id: bulkFileId
       });
       return dbProcessedEmail.save();
     }
@@ -596,7 +599,7 @@ export class DomainService {
     }
   }
 
-  async smtpValidation(email: string) {
+  async smtpValidation(email: string, user: User, bulkFileId = null) {
     const emailStatus: EmailValidationResponseType = {
       email_address: email,
     };
@@ -697,7 +700,7 @@ export class DomainService {
         dbDomain.domain_age_days = domainInfo.domain_age_days;
         await dbDomain.save();
       }
-      await this.saveProcessedEmail(emailStatus);
+      await this.saveProcessedEmail(emailStatus, user, bulkFileId);
       // If everything goes well, then return the emailStatus
       return emailStatus;
     } catch (error) {
@@ -706,7 +709,7 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-      await this.saveProcessedErrorEmail(emailStatus, error, email);
+      await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
       return emailStatus;
     }
@@ -716,9 +719,11 @@ export class DomainService {
     emailStatus: EmailValidationResponseType,
     error: { reason: EmailReason; },
     email: string,
+    user: User,
+    bulkFileId
   ) {
     try {
-      await this.saveProcessedEmail(emailStatus);
+      await this.saveProcessedEmail(emailStatus, user, bulkFileId);
       // If the email is a free email OR Error reasons
       // DO NOT confirm the domain has issues. Other emails
       // from the same domain might be valid.

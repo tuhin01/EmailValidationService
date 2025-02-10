@@ -8,7 +8,7 @@ import { Queue } from 'bull';
 
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
-import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
+import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import {
   EmailReason,
   EmailStatus,
@@ -19,6 +19,8 @@ import { InjectQueue } from '@nestjs/bull';
 import { BULK_EMAIL_SEND } from '@/common/utility/constant';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import Bottleneck from 'bottleneck';
+import { UsersService } from '@/users/users.service';
+import { User } from '@/users/entities/user.entity';
 
 @Injectable()
 export class SchedulerService {
@@ -27,6 +29,7 @@ export class SchedulerService {
   constructor(
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
+    private userService: UsersService,
     private winstonLoggerService: WinstonLoggerService,
     @InjectQueue('emailQueue') private emailQueue: Queue,
   ) {
@@ -41,6 +44,7 @@ export class SchedulerService {
     }
     const firstPendingFIle = pendingFiles[0];
     try {
+      const user = await this.userService.findOneById(firstPendingFIle.user_id);
       const processingStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.PROCESSING,
       };
@@ -48,7 +52,7 @@ export class SchedulerService {
         firstPendingFIle.id,
         processingStatus,
       );
-      const results = await this.__bulkValidate(firstPendingFIle.file_path);
+      const results = await this.__bulkValidate(firstPendingFIle, user);
       let invalid_email_count = 0;
       let do_not_mail_count = 0;
       let unknown_count = 0;
@@ -196,7 +200,8 @@ export class SchedulerService {
     return result;
   }
 
-  private async __bulkValidate(csvPath: string): Promise<any[]> {
+  private async __bulkValidate(bulkFile: BulkFile, user: User): Promise<any[]> {
+    const csvPath = bulkFile.file_path;
     if (!csvPath) {
       throw new Error('No file path provided');
     }
@@ -238,7 +243,7 @@ export class SchedulerService {
           return null; // Skip records without an Email field
         }
         console.log(`Verify ${record.Email} started`);
-        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email);
+        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email, user, bulkFile.id);
         console.log(`email_status: ${validationResponse.email_status} email_sub_status:${validationResponse.email_sub_status}`);
         return {
           ...record,
