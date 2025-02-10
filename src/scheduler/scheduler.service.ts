@@ -35,10 +35,10 @@ export class SchedulerService {
   @Cron('1 * * * * *')
   public async runFileEmailValidation() {
     const pendingFiles = await this.bulkFilesService.getPendingBulkFile();
+    console.log({ pendingFiles });
     if (!pendingFiles.length) {
       return;
     }
-    console.log({ pendingFiles });
     const firstPendingFIle = pendingFiles[0];
     try {
       const processingStatus: UpdateBulkFileDto = {
@@ -49,7 +49,6 @@ export class SchedulerService {
         processingStatus,
       );
       const results = await this.__bulkValidate(firstPendingFIle.file_path);
-      console.log(results);
       let invalid_email_count = 0;
       let do_not_mail_count = 0;
       let unknown_count = 0;

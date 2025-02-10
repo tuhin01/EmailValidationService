@@ -679,7 +679,7 @@ export class DomainService {
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
-        const catchAllEmail = `${randomStringGenerator()}${Date.now()}}@${domain}`;
+        const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
         await this.catchAllCheck(catchAllEmail, mxRecordHost);
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
