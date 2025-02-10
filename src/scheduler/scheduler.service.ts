@@ -38,6 +38,7 @@ export class SchedulerService {
     if (!pendingFiles.length) {
       return;
     }
+    console.log({ pendingFiles });
     const firstPendingFIle = pendingFiles[0];
     try {
       const processingStatus: UpdateBulkFileDto = {
@@ -48,6 +49,7 @@ export class SchedulerService {
         processingStatus,
       );
       const results = await this.__bulkValidate(firstPendingFIle.file_path);
+      console.log(results);
       let invalid_email_count = 0;
       let do_not_mail_count = 0;
       let unknown_count = 0;
@@ -111,6 +113,7 @@ export class SchedulerService {
             csvData,
             fileName,
           );
+          console.log(`${fileName} created`);
         }
       }
 
@@ -119,6 +122,7 @@ export class SchedulerService {
         results,
         folderName + '/combined.csv',
       );
+      console.log(`combined.csv created`);
 
       const completeStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.COMPLETE,
@@ -231,7 +235,9 @@ export class SchedulerService {
           console.warn('Missing Email field in record:', record);
           return null; // Skip records without an Email field
         }
+        console.log(`Verify ${record.Email} started`);
         const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email);
+        console.log(`email_status: ${validationResponse.email_status} email_sub_status:${validationResponse.email_sub_status}`);
         return {
           ...record,
           ...validationResponse,

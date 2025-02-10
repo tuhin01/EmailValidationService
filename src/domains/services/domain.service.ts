@@ -1,4 +1,5 @@
 import * as net from 'node:net';
+import * as tls from 'tls';
 
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
@@ -348,11 +349,12 @@ export class DomainService {
 
   async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
     return new Promise((resolve, reject) => {
-      const socket = net.createConnection(25, mxHost);
+      let socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
-      socket.setTimeout(5000);
+      socket.setTimeout(10000);
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
+      let useTLS = false;
       const commands = [
         `EHLO ${mxHost}`,
         `MAIL FROM: <${fromEmail}>`,
@@ -372,8 +374,30 @@ export class DomainService {
       socket.on('data', (data) => {
         dataStr = data.toString();
         console.log(data);
+        // if (data.includes('250-STARTTLS') && !useTLS) {
+        //   useTLS = true;
+        //   socket.write(`STARTTLS\r\n`);
+        //   console.log({ useTLS });
+        //   return;
+        // }
+        //
+        // if (useTLS && data.includes(220)) {
+        //   console.log('Upgrading to TLS...');
+        //   socket = tls.connect(
+        //     { socket, port: 465, host: mxHost, rejectUnauthorized: false },
+        //     () => {
+        //       stage = 0; // Restart after TLS upgrade
+        //       console.log(commands[stage]);
+        //       socket.write(`${commands[stage++]}\r\n`);
+        //     },
+        //   );
+        //   return;
+        // }
+
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
-          socket.write(`${commands[stage++]}\r\n`);
+          if (socket.writable) {
+            socket.write(`${commands[stage++]}\r\n`);
+          }
         } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
           this.closeSmtpConnection(socket);
           const smailStatus: EmailStatusType = SMTPResponseCode.TWO_51;
@@ -383,8 +407,7 @@ export class DomainService {
           data.includes(SMTPResponseCode.FIVE_50.smtp_code) ||
           data.includes(SMTPResponseCode.FIVE_05.smtp_code) ||
           data.includes(SMTPResponseCode.FIVE_51.smtp_code) ||
-          data.includes(SMTPResponseCode.FIVE_00.smtp_code) ||
-          data.includes(SMTPResponseCode.FOUR_50.smtp_code)
+          data.includes(SMTPResponseCode.FIVE_00.smtp_code)
         ) {
           this.closeSmtpConnection(socket);
           let error: EmailStatusType = { reason: undefined, status: undefined };
@@ -402,14 +425,15 @@ export class DomainService {
           error = SMTPResponseCode.FIVE_50;
           reject(error);
           return;
-        } else if (data.includes(SMTPResponseCode.FOUR_21.smtp_code)) {
+        } else if (
+          // Detect Gray listing (Temporary Failures)
+          data.includes(SMTPResponseCode.FOUR_21.smtp_code) ||
+          data.includes(SMTPResponseCode.FOUR_50.smtp_code) ||
+          data.includes(SMTPResponseCode.FOUR_51.smtp_code) ||
+          data.includes(SMTPResponseCode.FOUR_52.smtp_code)
+        ) {
           this.closeSmtpConnection(socket);
           const error: EmailStatusType = SMTPResponseCode.FOUR_21;
-          reject(error);
-          return;
-        } else if (data.includes(SMTPResponseCode.FOUR_51.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FOUR_51;
           reject(error);
           return;
         } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
@@ -472,11 +496,12 @@ export class DomainService {
         // Log the error
         this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
         this.closeSmtpConnection(socket);
-        const error: EmailStatusType = {
-          status: EmailStatus.UNKNOWN,
-          reason: err.message,
-        };
-        reject(error);
+        // Detect if the connection is blocked
+        if (err.message.includes('ECONNREFUSED') || err.message.includes('EHOSTUNREACH')) {
+          reject({ status: EmailStatus.SERVICE_UNAVAILABLE, reason: EmailReason.IP_BLOCKED });
+        } else {
+          reject({ status: EmailStatus.UNKNOWN, reason: err.message });
+        }
         return;
       });
 
@@ -704,6 +729,8 @@ export class DomainService {
         EmailReason.INVALID_EMAIL_FORMAT,
         EmailReason.UNVERIFIABLE_EMAIL,
         EmailReason.MAILBOX_NOT_FOUND,
+        EmailReason.IP_BLOCKED,
+        EmailReason.SMTP_TIMEOUT,
       ];
       if (
         emailStatus.free_email ||

@@ -102,18 +102,24 @@ export const SMTPResponseCode = {
     smtp_code: 451,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
     reason: EmailReason.IP_BLOCKED,
-    retry: false,
+    retry: true,
+  },
+  FOUR_52: {
+    smtp_code: 452,
+    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    reason: EmailReason.IP_BLOCKED,
+    retry: true,
   },
   FOUR_50: {
     smtp_code: 450,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
     reason: EmailReason.IP_BLOCKED,
-    retry: false,
+    retry: true,
   },
   FOUR_21: {
     smtp_code: 421,
-    status: EmailStatus.INVALID,
-    reason: EmailReason.MAILBOX_NOT_FOUND,
+    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    reason: EmailReason.IP_BLOCKED,
     retry: true,
   },
 };
