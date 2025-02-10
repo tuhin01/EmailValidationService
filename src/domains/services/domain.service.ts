@@ -357,6 +357,7 @@ export class DomainService {
         `EHLO ${mxHost}`,
         `MAIL FROM: <${fromEmail}>`,
         `RCPT TO: <${email}>`,
+        `QUIT`
       ];
 
       let stage = 0;
@@ -365,76 +366,12 @@ export class DomainService {
         socket.write(`${commands[stage++]}\r\n`);
       });
 
-      // socket.on('data', (data) => {
-      //   console.log("Data");
-      //   dataStr = data.toString();
-      //   console.log(dataStr);
-      //
-      //   // Function to handle errors and close the connection
-      //   const handleError = (errorType: EmailStatusType) => {
-      //     this.closeSmtpConnection(socket);
-      //     // Log the error
-      //     this.winstonLoggerService.error(`verifySmtp() data error - ${email}`, dataStr);
-      //
-      //     reject(errorType);
-      //   };
-      //
-      //   if (
-      //     dataStr.includes(SMTPResponseCode.TWO_50.smtp_code.toString()) &&
-      //     stage < commands.length
-      //   ) {
-      //     socket.write(`${commands[stage++]}\r\n`);
-      //     return;
-      //   }
-      //
-      //   // Handle specific SMTP error codes
-      //   // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
-      //   const smtpErrors: Record<string, EmailStatusType> = {
-      //     [SMTPResponseCode.FIVE_50.smtp_code]: SMTPResponseCode.FIVE_50,
-      //     [SMTPResponseCode.FOUR_21.smtp_code]: SMTPResponseCode.FOUR_21,
-      //     [SMTPResponseCode.FIVE_53.smtp_code]: SMTPResponseCode.FIVE_53,
-      //   };
-      //
-      //   for (const [code, errorType] of Object.entries(smtpErrors)) {
-      //     if (dataStr.includes(code)) {
-      //       handleError(errorType);
-      //       return;
-      //     }
-      //   }
-      //
-      //   // If all commands have been processed successfully
-      //   if (stage === commands.length) {
-      //     this.closeSmtpConnection(socket);
-      //     resolve({
-      //       status: EmailStatus.VALID,
-      //       reason: EmailReason.EMPTY,
-      //     });
-      //     return;
-      //   }
-      //
-      //   // General Error Handling for 4xx and 5xx Responses
-      //   const smtpErrorRegex = /^([45]\d{2})/;
-      //   const match = dataStr.match(smtpErrorRegex);
-      //   if (match) {
-      //     const responseCode = parseInt(match[1], 10);
-      //     const isTemporaryError = responseCode >= 400 && responseCode < 500;
-      //     // Log the error
-      //     this.winstonLoggerService.error(`verifySmtp() - ${email}`, dataStr);
-      //
-      //     resolve({
-      //       status: EmailStatus.INVALID,
-      //       smtp_code: responseCode,
-      //       reason: EmailReason.MAILBOX_NOT_FOUND,
-      //       retry: isTemporaryError,
-      //     });
-      //   }
-      // });
-
 
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
-        console.log(data);
+        dataStr = data.toString();
+
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           socket.write(`${commands[stage++]}\r\n`);
         } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
@@ -452,7 +389,7 @@ export class DomainService {
           this.closeSmtpConnection(socket);
           let error: EmailStatusType = { reason: undefined, status: undefined };
 
-          // Check if 550 response has any of the strings from 'ipBlockedStringsArray'
+          // Check if "data" has any of the strings from 'ipBlockedStringsArray'
           for (const str of ipBlockedStringsArray) {
             if (data.includes(str)) {
               error.status = EmailStatus.SERVICE_UNAVAILABLE;
@@ -715,7 +652,7 @@ export class DomainService {
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
-        const catchAllEmail = `${randomStringGenerator()}${randomStringGenerator()}@${domain}`;
+        const catchAllEmail = `${randomStringGenerator()}${Date.now()}}@${domain}`;
         await this.catchAllCheck(catchAllEmail, mxRecordHost);
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
