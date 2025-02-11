@@ -7,6 +7,12 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+export enum RetryStatus {
+  IN_PROGRESS = 'in_progress',
+  COMPLETE = 'complete',
+  PENDING = 'pending',
+}
+
 @Entity('processed_emails') // sql table name === 'domains'
 export class ProcessedEmail extends BaseEntity {
   @PrimaryGeneratedColumn()
@@ -17,9 +23,11 @@ export class ProcessedEmail extends BaseEntity {
   email_address: string;
 
   @Column({ type: 'int', nullable: true })
+  @Index()
   user_id: number;
 
   @Column({ type: 'int', nullable: true })
+  @Index()
   bulk_file_id: number;
 
   @Column({ type: 'varchar', length: 255 })
@@ -29,7 +37,12 @@ export class ProcessedEmail extends BaseEntity {
   domain: string;
 
   @Column({ type: 'varchar', length: 255 })
+  @Index()
   email_status: string;
+
+  @Column({ type: 'enum', enum: RetryStatus, default: RetryStatus.PENDING })
+  @Index()
+  retry: RetryStatus;
 
   @Column({ type: 'varchar', length: 255 })
   email_sub_status: string;

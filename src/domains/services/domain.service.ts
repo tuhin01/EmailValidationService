@@ -1,5 +1,4 @@
 import * as net from 'node:net';
-import * as tls from 'tls';
 
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
@@ -22,7 +21,8 @@ import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
-  EmailValidationResponseType, ipBlockedStringsArray,
+  EmailValidationResponseType,
+  ipBlockedStringsArray,
   SMTPResponseCode,
 } from '@/common/utility/email-status-type';
 import freeEmailProviderList from '@/common/utility/free-email-provider-list';
@@ -33,7 +33,7 @@ import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
 import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
 import { Domain } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
-import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
+import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
@@ -122,7 +122,7 @@ export class DomainService {
       const dbProcessedEmail: ProcessedEmail = ProcessedEmail.create({
         ...processedEmail,
         user_id: user.id,
-        bulk_file_id: bulkFileId
+        bulk_file_id: bulkFileId,
       });
       return dbProcessedEmail.save();
     }
@@ -144,6 +144,20 @@ export class DomainService {
       }
     }
     return null;
+  }
+
+
+  async getGrayListedProcessedEmail(bulkFileId: number) {
+    return ProcessedEmail.find({
+      where: {
+        email_status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+        // retry: RetryStatus.PENDING,
+        bulk_file_id: bulkFileId
+      },
+      order: {
+        id: 'ASC',
+      },
+    });
   }
 
   async create(createDomainDto: CreateDomainDto) {
@@ -193,6 +207,12 @@ export class DomainService {
     } catch (e) {
       throw new HttpException(e, HttpStatus.BAD_REQUEST);
     }
+  }
+
+  async updateProcessedEmail(processedEmailId: number, data) {
+    const existingDomain = await ProcessedEmail.findOne({ where: { id: processedEmailId } });
+    const updatedData = { ...existingDomain, ...data };
+    await ProcessedEmail.update(processedEmailId, updatedData);
   }
 
   async remove(domainRemove: string) {
@@ -376,7 +396,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        console.log(data);
+        // console.log(data);
         // if (data.includes('250-STARTTLS') && !useTLS) {
         //   useTLS = true;
         //   socket.write(`STARTTLS\r\n`);
@@ -720,7 +740,7 @@ export class DomainService {
     error: { reason: EmailReason; },
     email: string,
     user: User,
-    bulkFileId
+    bulkFileId,
   ) {
     try {
       await this.saveProcessedEmail(emailStatus, user, bulkFileId);
