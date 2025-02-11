@@ -79,6 +79,7 @@ export class SchedulerService {
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
+        updated_at: new Date().toLocaleDateString()
       };
       await this.bulkFilesService.updateBulkFile(
         firstPendingFile.id,
@@ -108,9 +109,12 @@ export class SchedulerService {
   public async runGrayListEmailValidation() {
     const grayListFile = await this.bulkFilesService.getGrayListCheckBulkFile();
     console.log({ grayListFile });
+    // console.log(grayListFile[0].created_at);
+    // console.log(new Date().toLocaleString());
     if (!grayListFile.length) {
       return;
     }
+
     const firstGrayListFile: BulkFile = grayListFile[0];
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
     console.log(processedEmails.length);

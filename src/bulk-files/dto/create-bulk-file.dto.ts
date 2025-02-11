@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 
@@ -46,4 +46,8 @@ export class CreateBulkFileDto {
   @IsString()
   @IsOptional()
   valid_email_count: number;
+
+  @IsString()
+  @IsOptional()
+  updated_at?: string;
 }

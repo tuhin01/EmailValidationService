@@ -58,6 +58,9 @@ export class BulkFile extends BaseEntity {
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
+
+  @CreateDateColumn({ type: 'timestamptz', default: null })
+  updated_at: Date;
 }
 
 // SQl Query to create Hash Index
