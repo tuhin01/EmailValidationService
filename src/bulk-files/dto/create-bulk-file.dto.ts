@@ -47,7 +47,7 @@ export class CreateBulkFileDto {
   @IsOptional()
   valid_email_count: number;
 
-  @IsString()
+  @IsDate()
   @IsOptional()
-  updated_at?: string;
+  updated_at?: Date;
 }

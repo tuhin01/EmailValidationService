@@ -1,3 +1,5 @@
+import * as process from 'node:process';
+
 import multipart from '@fastify/multipart';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';

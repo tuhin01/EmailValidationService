@@ -17,6 +17,8 @@ import { MailerModule } from './mailer/mailer.module';
 import { WinstonLoggerService } from './logger/winston-logger.service';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { GlobalExceptionFilter } from '@/common/exception-filter/global-exception.filter';
+import { TimeService } from './time/time.service';
+import { TimeModule } from './time/time.module';
 
 @Module({
   imports: [
@@ -41,6 +43,7 @@ import { GlobalExceptionFilter } from '@/common/exception-filter/global-exceptio
     UsersModule,
     MailerModule,
     WinstonLoggerModule,
+    TimeModule,
   ],
   controllers: [AppController],
   providers: [
@@ -55,6 +58,7 @@ import { GlobalExceptionFilter } from '@/common/exception-filter/global-exceptio
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
     },
+    TimeService,
   ],
 })
 export class AppModule {

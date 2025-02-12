@@ -24,7 +24,8 @@ import * as process from 'node:process';
 import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain } from '@/domains/entities/domain.entity';
-import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import { BULK_EMAIL_SEND, GRAY_LIST_MIN_GAP } from '@/common/utility/constant';
+import { TimeService } from '@/time/time.service';
 
 @Injectable()
 export class SchedulerService {
@@ -34,6 +35,7 @@ export class SchedulerService {
     private bulkFilesService: BulkFilesService,
     private domainService: DomainService,
     private userService: UsersService,
+    private timeService: TimeService,
     private winstonLoggerService: WinstonLoggerService,
     @InjectQueue('emailQueue') private emailQueue: Queue,
   ) {
@@ -47,8 +49,13 @@ export class SchedulerService {
       return;
     }
     const firstPendingFile = pendingFiles[0];
+    const user = await this.userService.findOneById(firstPendingFile.user_id);
+    if (!user) {
+      this.winstonLoggerService.error('runFileEmailValidation()', `No user found for user_id: ${firstPendingFile.user_id}`);
+
+      return;
+    }
     try {
-      const user = await this.userService.findOneById(firstPendingFile.user_id);
       const processingStatus: UpdateBulkFileDto = {
         file_status: BulkFileStatus.PROCESSING,
       };
@@ -79,24 +86,26 @@ export class SchedulerService {
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
-        updated_at: new Date().toLocaleDateString()
+        updated_at: new Date(),
       };
       await this.bulkFilesService.updateBulkFile(
         firstPendingFile.id,
         completeStatus,
       );
       console.log('File Status updated to - COMPLETE');
-      console.log('Done');
 
-      // const emailData = {
-      //   to: `Tuhin Pathan <tuhin.world@gmail.com>`,
-      //   subject: 'Email validation is complete',
-      //   template: 'welcome',
-      //   context: { 'name': 'John Doe' },
-      // };
-      // await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
-      //   attempts: 3, // Retry 3 times if failed
-      // });
+      const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
+      const emailData = {
+        to,
+        subject: 'Email validation is complete',
+        template: 'welcome',
+        context: { 'name': `${user.first_name}` },
+      };
+      await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
+        attempts: 3, // Retry 3 times if failed
+      });
+
+      console.log('Email Sent');
 
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
@@ -109,13 +118,23 @@ export class SchedulerService {
   public async runGrayListEmailValidation() {
     const grayListFile = await this.bulkFilesService.getGrayListCheckBulkFile();
     console.log({ grayListFile });
-    // console.log(grayListFile[0].created_at);
-    // console.log(new Date().toLocaleString());
     if (!grayListFile.length) {
       return;
     }
-
     const firstGrayListFile: BulkFile = grayListFile[0];
+    const user: User = await this.userService.findOneById(firstGrayListFile.user_id);
+    if (!user) {
+      this.winstonLoggerService.error('runGrayListEmailValidation()', `No user found for user_id: ${firstGrayListFile.user_id}`);
+
+      return;
+    }
+
+    // Check if we should run the gray list check or not at this time.
+    const shouldRun: boolean = this.timeService.shouldRunGrayListCheck(firstGrayListFile);
+    if (!shouldRun) {
+      return;
+    }
+
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
     console.log(processedEmails.length);
     if (!processedEmails.length) {
