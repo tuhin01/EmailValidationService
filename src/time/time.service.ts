@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { differenceInMinutes } from 'date-fns';
 import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
-import { GRAY_LIST_MIN_GAP } from '@/common/utility/constant';
+import { GRAY_LIST_MINUTE_GAP } from '@/common/utility/constant';
 
 @Injectable()
 export class TimeService {
@@ -10,17 +10,13 @@ export class TimeService {
   }
 
   public shouldRunGrayListCheck(file: BulkFile): boolean {
-    const bulkFileCreatedDate: Date = file.updated_at;
+    const updatedAt: Date = file.updated_at;
     const now = new Date();
 
     const minutesPassed = this.getTimeDifferenceInMin(
-      now, bulkFileCreatedDate,
+      now, updatedAt,
     );
-    if (minutesPassed < GRAY_LIST_MIN_GAP) {
-      return false;
-    }
-
-    return true;
+    return minutesPassed >= GRAY_LIST_MINUTE_GAP;
   }
 
 }

@@ -24,7 +24,7 @@ import * as process from 'node:process';
 import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain } from '@/domains/entities/domain.entity';
-import { BULK_EMAIL_SEND, GRAY_LIST_MIN_GAP } from '@/common/utility/constant';
+import { BULK_EMAIL_SEND } from '@/common/utility/constant';
 import { TimeService } from '@/time/time.service';
 
 @Injectable()
