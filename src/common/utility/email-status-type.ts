@@ -138,5 +138,5 @@ export type EmailStatusType = {
 };
 
 export const ipBlockedStringsArray = [
-  'permanently deferred', 'Spamhaus', 'cannot find your reverse hostname'
+  'permanently deferred', 'Spamhaus', 'cannot find your reverse hostname', 'spamhaus',
 ];

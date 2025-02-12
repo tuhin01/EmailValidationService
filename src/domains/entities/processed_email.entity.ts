@@ -45,6 +45,7 @@ export class ProcessedEmail extends BaseEntity {
   retry: RetryStatus;
 
   @Column({ type: 'varchar', length: 255 })
+  @Index()
   email_sub_status: string;
 
   @Column({ type: 'int', nullable: true })

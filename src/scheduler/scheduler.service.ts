@@ -94,16 +94,16 @@ export class SchedulerService {
       );
       console.log('File Status updated to - COMPLETE');
 
-      const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
-      const emailData = {
-        to,
-        subject: 'Email validation is complete',
-        template: 'welcome',
-        context: { 'name': `${user.first_name}` },
-      };
-      await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
-        attempts: 3, // Retry 3 times if failed
-      });
+      // const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
+      // const emailData = {
+      //   to,
+      //   subject: 'Email validation is complete',
+      //   template: 'welcome',
+      //   context: { 'name': `${user.first_name}` },
+      // };
+      // await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
+      //   attempts: 3, // Retry 3 times if failed
+      // });
 
       console.log('Email Sent');
 
@@ -131,6 +131,7 @@ export class SchedulerService {
 
     // Check if we should run the gray list check or not at this time.
     const shouldRun: boolean = this.timeService.shouldRunGrayListCheck(firstGrayListFile);
+    console.log({ shouldRun });
     if (!shouldRun) {
       return;
     }
@@ -154,8 +155,8 @@ export class SchedulerService {
   private async __bulkGrayListValidate(emails: ProcessedEmail[]) {
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 4, // Adjust based on your testing
-      minTime: 250, // 200ms delay between requests (adjustable)
+      maxConcurrent: 3, // Adjust based on your testing
+      minTime: 300, // 200ms delay between requests (adjustable)
     });
 
     const validationPromises: Promise<any>[] = emails.map((processedEmail: ProcessedEmail) => limiter.schedule(async () => {
@@ -289,8 +290,8 @@ export class SchedulerService {
     let csvHeaders = [];
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 4, // Adjust based on your testing
-      minTime: 250, // 200ms delay between requests (adjustable)
+      maxConcurrent: 2, // Adjust based on your testing
+      minTime: 500, // 200ms delay between requests (adjustable)
     });
 
     try {
@@ -325,7 +326,7 @@ export class SchedulerService {
         }
         console.log(`Verify ${record.Email} started`);
         const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email, user, bulkFile.id);
-        console.log(`email_status: ${validationResponse.email_status} email_sub_status:${validationResponse.email_sub_status}`);
+        console.log({ validationResponse });
         return {
           ...record,
           ...validationResponse,

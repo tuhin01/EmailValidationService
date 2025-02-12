@@ -149,11 +149,16 @@ export class DomainService {
 
   async getGrayListedProcessedEmail(bulkFileId: number) {
     return ProcessedEmail.find({
-      where: {
-        email_status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-        // retry: RetryStatus.PENDING,
-        bulk_file_id: bulkFileId
-      },
+      where: [
+        {
+          email_status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+          bulk_file_id: bulkFileId
+        },
+        {
+          email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
+          bulk_file_id: bulkFileId
+        }
+      ],
       order: {
         id: 'ASC',
       },
@@ -396,7 +401,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        // console.log(data);
+        console.log(data);
         // if (data.includes('250-STARTTLS') && !useTLS) {
         //   useTLS = true;
         //   socket.write(`STARTTLS\r\n`);
@@ -436,6 +441,7 @@ export class DomainService {
         ) {
           this.closeSmtpConnection(socket);
           let error: EmailStatusType = { reason: undefined, status: undefined };
+          this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, dataStr);
 
           // Check if "data" has any of the strings from 'ipBlockedStringsArray'
           for (const str of ipBlockedStringsArray) {
