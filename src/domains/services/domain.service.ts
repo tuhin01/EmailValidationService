@@ -429,6 +429,7 @@ export class DomainService {
           return;
         } else if (
           data.includes(SMTPResponseCode.FIVE_50.smtp_code) ||
+          data.includes(SMTPResponseCode.FIVE_56.smtp_code) ||
           data.includes(SMTPResponseCode.FIVE_05.smtp_code) ||
           data.includes(SMTPResponseCode.FIVE_51.smtp_code) ||
           data.includes(SMTPResponseCode.FIVE_00.smtp_code)

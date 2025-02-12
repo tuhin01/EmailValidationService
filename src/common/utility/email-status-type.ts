@@ -98,6 +98,12 @@ export const SMTPResponseCode = {
     reason: EmailReason.IP_BLOCKED,
     retry: false,
   },
+  FIVE_56: {
+    smtp_code: 556,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
   FOUR_51: {
     smtp_code: 451,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
