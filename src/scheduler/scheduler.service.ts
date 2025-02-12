@@ -77,7 +77,7 @@ export class SchedulerService {
         do_not_mail_count,
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
-      const completeStatus: UpdateBulkFileDto = {
+      const updateData: UpdateBulkFileDto = {
         file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
         valid_email_count,
@@ -90,7 +90,7 @@ export class SchedulerService {
       };
       await this.bulkFilesService.updateBulkFile(
         firstPendingFile.id,
-        completeStatus,
+        updateData,
       );
       console.log('File Status updated to - COMPLETE');
 
