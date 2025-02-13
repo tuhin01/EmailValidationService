@@ -143,7 +143,7 @@ export class SchedulerService {
 
     // Generate all csv and update DB with updated counts.
     await this.generateBulkFileResultCsv(firstGrayListFile.id);
-    
+
     const completeStatus: UpdateBulkFileDto = {
       file_status: BulkFileStatus.COMPLETE,
     };
@@ -187,8 +187,8 @@ export class SchedulerService {
   private async __bulkGrayListValidate(emails: ProcessedEmail[]) {
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 3, // Adjust based on your testing
-      minTime: 300, // 200ms delay between requests (adjustable)
+      maxConcurrent: 1, // Adjust based on your testing
+      // minTime: 300, // 200ms delay between requests (adjustable)
     });
 
     const validationPromises: Promise<any>[] = emails.map((processedEmail: ProcessedEmail) => limiter.schedule(async () => {
