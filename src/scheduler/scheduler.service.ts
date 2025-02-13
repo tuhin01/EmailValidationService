@@ -24,7 +24,6 @@ import * as process from 'node:process';
 import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain } from '@/domains/entities/domain.entity';
-import { BULK_EMAIL_SEND } from '@/common/utility/constant';
 import { TimeService } from '@/time/time.service';
 
 @Injectable()
@@ -43,13 +42,13 @@ export class SchedulerService {
 
   @Cron('1 * * * * *') // Runs every minutes
   public async runFileEmailValidation() {
-    const pendingFiles = await this.bulkFilesService.getPendingBulkFile();
+    const pendingFiles: BulkFile[] = await this.bulkFilesService.getPendingBulkFile();
     console.log({ pendingFiles });
     if (!pendingFiles.length) {
       return;
     }
-    const firstPendingFile = pendingFiles[0];
-    const user = await this.userService.findOneById(firstPendingFile.user_id);
+    const firstPendingFile: BulkFile = pendingFiles[0];
+    const user: User = await this.userService.findOneById(firstPendingFile.user_id);
     if (!user) {
       this.winstonLoggerService.error('runFileEmailValidation()', `No user found for user_id: ${firstPendingFile.user_id}`);
 
@@ -63,10 +62,10 @@ export class SchedulerService {
         firstPendingFile.id,
         processingStatus,
       );
-      const results = await this.__bulkValidate(firstPendingFile, user);
+      const results: any[] = await this.__bulkValidate(firstPendingFile, user);
 
-      const folderName = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
-      const csvSavePath = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
+      const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
+      const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
       const {
         valid_email_count,
@@ -94,13 +93,13 @@ export class SchedulerService {
       );
       console.log('File Status updated to - COMPLETE');
 
-      // const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
-      // const emailData = {
-      //   to,
-      //   subject: 'Email validation is complete',
-      //   template: 'welcome',
-      //   context: { 'name': `${user.first_name}` },
-      // };
+      const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
+      const emailData = {
+        to,
+        subject: 'Email validation is complete',
+        template: 'welcome',
+        context: { 'name': `${user.first_name}` },
+      };
       // await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
       //   attempts: 3, // Retry 3 times if failed
       // });
@@ -112,7 +111,6 @@ export class SchedulerService {
       console.log(e);
     }
   }
-
 
   @Cron('1 * * * * *') // Runs every minutes
   public async runGrayListEmailValidation() {
@@ -141,14 +139,48 @@ export class SchedulerService {
     if (!processedEmails.length) {
       return;
     }
-    const results = await this.__bulkGrayListValidate(processedEmails);
-    console.log({ results });
+    await this.__bulkGrayListValidate(processedEmails);
+
+    // Generate all csv and update DB with updated counts.
+    await this.generateBulkFileResultCsv(firstGrayListFile.id);
+    
     const completeStatus: UpdateBulkFileDto = {
       file_status: BulkFileStatus.COMPLETE,
     };
     await this.bulkFilesService.updateBulkFile(
       firstGrayListFile.id,
       completeStatus,
+    );
+  }
+
+  public async generateBulkFileResultCsv(fileId: number) {
+    const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
+    const processedEmails: ProcessedEmail[] = await this.domainService.findProcessedEmailsByFileId(bulkFile.id);
+    const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path, processedEmails);
+    const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
+    const {
+      valid_email_count,
+      invalid_email_count,
+      unknown_count,
+      temporary_blocked,
+      catch_all_count,
+      do_not_mail_count,
+      spam_trap_count,
+    } = await this.__saveValidationResultsInCsv(results, folderName);
+    const updateData: UpdateBulkFileDto = {
+      // file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
+      // validation_file_path: csvSavePath,
+      valid_email_count,
+      invalid_email_count,
+      unknown_count,
+      catch_all_count,
+      do_not_mail_count,
+      spam_trap_count,
+      updated_at: new Date(),
+    };
+    await this.bulkFilesService.updateBulkFile(
+      fileId,
+      updateData,
     );
   }
 
@@ -290,8 +322,8 @@ export class SchedulerService {
     let csvHeaders = [];
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 2, // Adjust based on your testing
-      minTime: 500, // 200ms delay between requests (adjustable)
+      maxConcurrent: 3, // Adjust based on your testing
+      minTime: 300, // 300ms delay between requests (adjustable)
     });
 
     try {
@@ -321,12 +353,9 @@ export class SchedulerService {
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
         if (!record.Email) {
-          console.warn('Missing Email field in record:', record);
           return null; // Skip records without an Email field
         }
-        console.log(`Verify ${record.Email} started`);
         const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email, user, bulkFile.id);
-        console.log({ validationResponse });
         return {
           ...record,
           ...validationResponse,
@@ -338,6 +367,44 @@ export class SchedulerService {
       return results
         .filter(result => result.status === 'fulfilled')
         .map(result => (result as PromiseFulfilledResult<any>).value);
+    } catch (err) {
+      console.error('Error during bulk validation:', err);
+      throw err;
+    }
+  }
+
+  private async __readSCsvAndMergeValidationResults(csvPath: string, emailValidationData: ProcessedEmail[]) {
+    try {
+      // Read the CSV file
+      const data = await fs.promises.readFile(csvPath, 'utf8');
+
+      // Parse the CSV content
+      const records = await new Promise<any[]>((resolve, reject) => {
+        parse(
+          data,
+          {
+            columns: true, // Convert rows to objects using the first row as keys
+            skip_empty_lines: true, // Ignore empty lines
+            trim: true, // Trim spaces from values
+          },
+          (err, records) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(records);
+            }
+          },
+        );
+      });
+
+      for (let record of records) {
+        const validationResponse : EmailValidationResponseType = emailValidationData.find(e => {
+          return e.email_address === record.Email;
+        });
+        Object.assign(record, validationResponse); // Merges source into target (modifies target)
+      }
+
+      return records;
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;

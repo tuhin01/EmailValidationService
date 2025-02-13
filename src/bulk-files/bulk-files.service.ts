@@ -16,11 +16,23 @@ import * as process from 'node:process';
 @Injectable()
 export class BulkFilesService {
   async getPendingBulkFile() {
-    return await BulkFile.find({where: { file_status: BulkFileStatus.PENDING }, take: 1});
+    return await BulkFile.find({
+      where: { file_status: BulkFileStatus.PENDING },
+      order: { id: 'ASC' },
+      take: 1,
+    });
+  }
+
+  async getBulkFile(fileId: number) {
+    return await BulkFile.findOne({ where: { id: fileId } });
   }
 
   async getGrayListCheckBulkFile() {
-    return await BulkFile.find({where: { file_status: BulkFileStatus.GRAY_LIST_CHECK }, take: 1});
+    return await BulkFile.find({
+      where: { file_status: BulkFileStatus.GRAY_LIST_CHECK },
+      order: { id: 'ASC' },
+      take: 1,
+    });
   }
 
   async saveBulkFile(createBulkFileDto: CreateBulkFileDto) {

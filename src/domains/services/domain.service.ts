@@ -33,7 +33,7 @@ import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
 import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
 import { Domain } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
-import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
+import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
@@ -151,17 +151,24 @@ export class DomainService {
     return ProcessedEmail.find({
       where: [
         {
-          email_status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-          bulk_file_id: bulkFileId
+          email_sub_status: EmailReason.IP_BLOCKED,
+          bulk_file_id: bulkFileId,
         },
         {
           email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
-          bulk_file_id: bulkFileId
-        }
+          bulk_file_id: bulkFileId,
+        },
       ],
       order: {
         id: 'ASC',
       },
+    });
+  }
+
+  async findProcessedEmailsByFileId(fileId: number) {
+    return ProcessedEmail.find({
+      where: { bulk_file_id: fileId },
+      order: { id: 'ASC' },
     });
   }
 
