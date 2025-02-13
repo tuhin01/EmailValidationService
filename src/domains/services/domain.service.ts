@@ -386,7 +386,7 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       let socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
-      socket.setTimeout(10000);
+      socket.setTimeout(20000);
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
       let useTLS = false;
