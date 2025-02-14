@@ -168,8 +168,6 @@ export class SchedulerService {
       spam_trap_count,
     } = await this.__saveValidationResultsInCsv(results, folderName);
     const updateData: UpdateBulkFileDto = {
-      // file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
-      // validation_file_path: csvSavePath,
       valid_email_count,
       invalid_email_count,
       unknown_count,
@@ -188,7 +186,7 @@ export class SchedulerService {
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
       maxConcurrent: 1, // Adjust based on your testing
-      // minTime: 300, // 200ms delay between requests (adjustable)
+      minTime: 300, // 200ms delay between requests (adjustable)
     });
 
     const validationPromises: Promise<any>[] = emails.map((processedEmail: ProcessedEmail) => limiter.schedule(async () => {
@@ -212,9 +210,16 @@ export class SchedulerService {
         this.winstonLoggerService.error('Gray List Error', e);
       }
       updateData = {
-        email_status: emailStatus.status,
         retry: RetryStatus.COMPLETE,
       };
+      // Only update email_status in DB when retry finds it as valid.
+      // We need to do this to make sure
+      if(emailStatus.status === EmailStatus.VALID) {
+        updateData = {
+          email_status: emailStatus.status,
+          retry: RetryStatus.COMPLETE,
+        };
+      }
       await this.domainService.updateProcessedEmail(processedEmail.id, updateData);
       return emailStatus;
     }));

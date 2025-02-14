@@ -407,26 +407,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        console.log(data);
-        // if (data.includes('250-STARTTLS') && !useTLS) {
-        //   useTLS = true;
-        //   socket.write(`STARTTLS\r\n`);
-        //   console.log({ useTLS });
-        //   return;
-        // }
-        //
-        // if (useTLS && data.includes(220)) {
-        //   console.log('Upgrading to TLS...');
-        //   socket = tls.connect(
-        //     { socket, port: 465, host: mxHost, rejectUnauthorized: false },
-        //     () => {
-        //       stage = 0; // Restart after TLS upgrade
-        //       console.log(commands[stage]);
-        //       socket.write(`${commands[stage++]}\r\n`);
-        //     },
-        //   );
-        //   return;
-        // }
+        // console.log(data);
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           // Check if the socket is writable before writing
