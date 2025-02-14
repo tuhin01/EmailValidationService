@@ -25,7 +25,7 @@ import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { TimeService } from '@/time/time.service';
-import { PROCESS_EMAIL_SEND_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
+import { LEAD_WRAP, PROCESS_EMAIL_SEND_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
 import { JobOptions } from 'bull';
 
@@ -95,7 +95,7 @@ export class SchedulerService {
       );
       console.log('File Status updated to - COMPLETE');
 
-      const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
+      const to = `${LEAD_WRAP} <${user.email_address}>`;
       const emailData = {
         to,
         subject: 'Email validation is complete',

@@ -1,3 +1,4 @@
+export const LEAD_WRAP = 'LeadWrap';
 export const MX_RECORD_CHECK_DAY_GAP = 30;
 export const SPAM_DB_CHECK_DAY_GAP = 30;
 export const CATCH_ALL_CHECK_DAY_GAP = 0;
