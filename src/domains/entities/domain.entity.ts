@@ -7,6 +7,11 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+export type MXRecord = {
+  exchange: string,
+  priority: number
+}
+
 @Entity('domains') // sql table name === 'domains'
 export class Domain extends BaseEntity {
   @PrimaryGeneratedColumn()

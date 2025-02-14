@@ -23,7 +23,7 @@ import { User } from '@/users/entities/user.entity';
 import * as process from 'node:process';
 import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
-import { Domain } from '@/domains/entities/domain.entity';
+import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { TimeService } from '@/time/time.service';
 
 @Injectable()
@@ -202,9 +202,9 @@ export class SchedulerService {
       const domain: Domain = await this.domainService.findOne(processedEmail.domain);
       let emailStatus: EmailStatusType;
       try {
-        const allMxRecordHost = JSON.parse(domain.mx_record_hosts);
+        const allMxRecordHost: MXRecord[] = JSON.parse(domain.mx_record_hosts);
         const index = Math.floor(Math.random() * allMxRecordHost.length);
-        const mxRecordHost = allMxRecordHost[index]['exchange'];
+        const mxRecordHost = allMxRecordHost[index].exchange;
 
         emailStatus = await this.domainService.verifySmtp(processedEmail.email_address, mxRecordHost);
       } catch (e) {

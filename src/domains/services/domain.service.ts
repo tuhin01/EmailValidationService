@@ -31,7 +31,7 @@ import { EmailRolesService } from '@/email-roles/email-roles.service';
 import { EmailRole } from '@/email-roles/entities/email-role.entity';
 import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
 import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
-import { Domain } from '@/domains/entities/domain.entity';
+import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
@@ -693,13 +693,13 @@ export class DomainService {
       }
 
       // Step 7 : Get the MX records of the domain
-      const allMxRecordHost: [] = await this.checkDomainMxRecords(
+      const allMxRecordHost: MXRecord[] = await this.checkDomainMxRecords(
         domain,
         dbDomain,
       );
 
       const index = Math.floor(Math.random() * allMxRecordHost.length);
-      const mxRecordHost = allMxRecordHost[index]['exchange'];
+      const mxRecordHost = allMxRecordHost[index].exchange;
       // Save The domain if it is not already saved
       if (!dbDomain) {
         const createDomainDto: CreateDomainDto = {
