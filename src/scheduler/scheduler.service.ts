@@ -27,7 +27,7 @@ import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { TimeService } from '@/time/time.service';
 import { LEAD_WRAP, PROCESS_EMAIL_SEND_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
-import { JobOptions } from 'bull';
+import { JobOptions as BullJobOptions } from 'bull';
 
 @Injectable()
 export class SchedulerService {
@@ -102,15 +102,11 @@ export class SchedulerService {
         template: 'welcome',
         context: { 'name': `${user.first_name}` },
       };
-      const jobOptions: JobOptions = {
+      const jobOptions: BullJobOptions = {
         attempts: 1, // Retry 3 times if failed
         delay: 0,
       };
       await this.queueService.addEmailToQueue(emailData, jobOptions);
-
-      // await this.emailQueue.add(PROCESS_EMAIL_SEND_QUEUE, emailData, {
-      //   attempts: 3, // Retry 3 times if failed
-      // });
 
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
