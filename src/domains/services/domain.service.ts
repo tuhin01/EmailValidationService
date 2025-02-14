@@ -388,7 +388,6 @@ export class DomainService {
       socket.setTimeout(5000);
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
-      let useTLS = false;
       const commands = [
         `EHLO ${mxHost}`,
         `MAIL FROM: <${fromEmail}>`,
@@ -396,18 +395,19 @@ export class DomainService {
         `QUIT`,
       ];
 
+      console.log(email);
+
       let stage = 0;
 
       socket.on('connect', () => {
         socket.write(`${commands[stage++]}\r\n`);
       });
 
-
       // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        // console.log(data);
+        console.log(data);
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           // Check if the socket is writable before writing
@@ -474,26 +474,32 @@ export class DomainService {
           return;
 
         } else {
-          const errorData = data.toString();
-          if (errorData) {
-            this.winstonLoggerService.error(`verifySmtp() else block - ${email}`, dataStr);
-          }
+          console.log(dataStr);
           // When no other condition is true, handle it for all other codes
           // Response code starts with "4" - Temporary error, and we should retry later
           // Response code starts with "5" - Permanent error and must not retry
-          if (errorData.startsWith('4')) {
-            const smailStatus: EmailStatusType = SMTPResponseCode.FOUR_51;
-            reject(smailStatus);
-            return;
-          } else if (errorData.startsWith('5')) {
-            const smailStatus: EmailStatusType = SMTPResponseCode.FIVE_50;
-            reject(smailStatus);
-            return;
+          if(dataStr) {
+            // Log the response
+            if (!dataStr.startsWith('2')) {
+              this.winstonLoggerService.error(`verifySmtp() else - ${email}`, dataStr);
+            }
+
+            if (dataStr.startsWith('4')) {
+              const emailStatus: EmailStatusType = SMTPResponseCode.FOUR_51;
+              reject(emailStatus);
+              return;
+            } else if (dataStr.startsWith('5')) {
+              const emailStatus: EmailStatusType = SMTPResponseCode.FIVE_50;
+              console.log(emailStatus);
+              reject(emailStatus);
+              return;
+            }
           }
         }
       });
 
       socket.on('close', () => {
+        console.log("Closing...");
         // Log the error, if there are any
         if (dataStr) {
           const responseCode = parseInt(dataStr.substring(0, 3));
@@ -504,6 +510,12 @@ export class DomainService {
             };
             reject(error);
           }
+        } else {
+          const error: EmailStatusType = {
+            status: EmailStatus.SERVICE_UNAVAILABLE,
+            reason: EmailReason.IP_BLOCKED,
+          };
+          reject(error);
         }
         return;
       });
@@ -625,6 +637,8 @@ export class DomainService {
       delete processedEmail.id;
       delete processedEmail.created_at;
       return { ...emailStatus, ...processedEmail };
+    } else {
+      console.log("Processed email not found for " + email);
     }
 
     try {

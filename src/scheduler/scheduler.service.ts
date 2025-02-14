@@ -63,7 +63,6 @@ export class SchedulerService {
         processingStatus,
       );
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
-
       const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
       const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
@@ -214,7 +213,7 @@ export class SchedulerService {
       };
       // Only update email_status in DB when retry finds it as valid.
       // We need to do this to make sure
-      if(emailStatus.status === EmailStatus.VALID) {
+      if (emailStatus.status === EmailStatus.VALID) {
         updateData = {
           email_status: emailStatus.status,
           retry: RetryStatus.COMPLETE,
@@ -331,8 +330,8 @@ export class SchedulerService {
     let csvHeaders = [];
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 3, // Adjust based on your testing
-      minTime: 300, // 300ms delay between requests (adjustable)
+      maxConcurrent: 30, // Adjust based on your testing
+      // minTime: 300, // 300ms delay between requests (adjustable)
     });
 
     try {
@@ -361,18 +360,26 @@ export class SchedulerService {
 
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-        if (!record.Email) {
-          return null; // Skip records without an Email field
-        }
-        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(record.Email, user, bulkFile.id);
-        return {
-          ...record,
-          ...validationResponse,
-        };
-      }));
-
+          if (!record.Email) {
+            return null; // Skip records without an Email field
+          }
+          const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+            record.Email,
+            user,
+            bulkFile.id,
+          );
+          // console.log(validationResponse.email_status);
+          return {
+            ...record,
+            ...validationResponse,
+          };
+        }),
+      );
+      console.log('CC');
       // Wait for all validations to complete
       const results = await Promise.allSettled(validationPromises);
+      console.log('DD');
+
       return results
         .filter(result => result.status === 'fulfilled')
         .map(result => (result as PromiseFulfilledResult<any>).value);
@@ -407,7 +414,7 @@ export class SchedulerService {
       });
 
       for (let record of records) {
-        const validationResponse : EmailValidationResponseType = emailValidationData.find(e => {
+        const validationResponse: EmailValidationResponseType = emailValidationData.find(e => {
           return e.email_address === record.Email;
         });
         Object.assign(record, validationResponse); // Merges source into target (modifies target)
