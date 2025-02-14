@@ -23,7 +23,7 @@ export class Domain extends BaseEntity {
   domain_age_days: number;
 
   @Column()
-  mx_record_host: string;
+  mx_record_hosts: string;
 
   @CreateDateColumn({ type: 'timestamptz' })
   readonly created_at: Date;

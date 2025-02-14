@@ -305,7 +305,7 @@ export class DomainService {
   async checkDomainMxRecords(
     domain: string,
     dbDomain: Domain,
-  ): Promise<string> {
+  ): Promise<any> {
     return new Promise(async (resolve, reject) => {
       // Check if mx record saveBulkFile time is pass 30 days or not.
       // If yes - then revalidate mx records to make sure it is still valid
@@ -316,7 +316,7 @@ export class DomainService {
           dbDomain.created_at,
         );
         if (dayPassedSinceLastMxCheck < MX_RECORD_CHECK_DAY_GAP) {
-          resolve(dbDomain.mx_record_host);
+          resolve(JSON.parse(dbDomain.mx_record_hosts));
           return;
         }
       }
@@ -345,15 +345,14 @@ export class DomainService {
       }
 
       mxRecords.sort((a, b) => a.priority - b.priority);
-      const latest_mx_record = mxRecords[0].exchange;
 
       // If the domain is already saved but mx_record is new then we update our record
       if (dbDomain) {
-        dbDomain.mx_record_host = latest_mx_record;
+        dbDomain.mx_record_hosts = JSON.stringify(mxRecords);
         await dbDomain.save();
       }
 
-      resolve(latest_mx_record);
+      resolve(mxRecords);
     });
   }
 
@@ -694,17 +693,19 @@ export class DomainService {
       }
 
       // Step 7 : Get the MX records of the domain
-      const mxRecordHost: string = await this.checkDomainMxRecords(
+      const allMxRecordHost: [] = await this.checkDomainMxRecords(
         domain,
         dbDomain,
       );
 
+      const index = Math.floor(Math.random() * allMxRecordHost.length);
+      const mxRecordHost = allMxRecordHost[index]['exchange'];
       // Save The domain if it is not already saved
       if (!dbDomain) {
         const createDomainDto: CreateDomainDto = {
           domain,
           domain_age_days: null,
-          mx_record_host: mxRecordHost,
+          mx_record_hosts: JSON.stringify(allMxRecordHost),
           domain_ip: '',
         };
         dbDomain = await this.create(createDomainDto);

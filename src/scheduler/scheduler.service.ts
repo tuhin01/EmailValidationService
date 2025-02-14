@@ -202,7 +202,11 @@ export class SchedulerService {
       const domain: Domain = await this.domainService.findOne(processedEmail.domain);
       let emailStatus: EmailStatusType;
       try {
-        emailStatus = await this.domainService.verifySmtp(processedEmail.email_address, domain.mx_record_host);
+        const allMxRecordHost = JSON.parse(domain.mx_record_hosts);
+        const index = Math.floor(Math.random() * allMxRecordHost.length);
+        const mxRecordHost = allMxRecordHost[index]['exchange'];
+
+        emailStatus = await this.domainService.verifySmtp(processedEmail.email_address, mxRecordHost);
       } catch (e) {
         emailStatus = { ...e };
         this.winstonLoggerService.error('Gray List Error', e);
