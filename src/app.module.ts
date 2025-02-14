@@ -19,6 +19,7 @@ import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { GlobalExceptionFilter } from '@/common/exception-filter/global-exception.filter';
 import { TimeService } from './time/time.service';
 import { TimeModule } from './time/time.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TimeModule } from './time/time.module';
     MailerModule,
     WinstonLoggerModule,
     TimeModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [

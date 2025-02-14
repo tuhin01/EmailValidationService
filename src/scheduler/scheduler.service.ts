@@ -25,6 +25,9 @@ import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { TimeService } from '@/time/time.service';
+import { PROCESS_EMAIL_SEND_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
+import { QueueService } from '@/queue/queue.service';
+import { JobOptions } from 'bull';
 
 @Injectable()
 export class SchedulerService {
@@ -35,8 +38,8 @@ export class SchedulerService {
     private domainService: DomainService,
     private userService: UsersService,
     private timeService: TimeService,
+    private queueService: QueueService,
     private winstonLoggerService: WinstonLoggerService,
-    @InjectQueue('emailQueue') private emailQueue: Queue,
   ) {
   }
 
@@ -99,11 +102,15 @@ export class SchedulerService {
         template: 'welcome',
         context: { 'name': `${user.first_name}` },
       };
-      // await this.emailQueue.add(BULK_EMAIL_SEND, emailData, {
+      const jobOptions: JobOptions = {
+        attempts: 1, // Retry 3 times if failed
+        delay: 0,
+      };
+      await this.queueService.addEmailToQueue(emailData, jobOptions);
+
+      // await this.emailQueue.add(PROCESS_EMAIL_SEND_QUEUE, emailData, {
       //   attempts: 3, // Retry 3 times if failed
       // });
-
-      console.log('Email Sent');
 
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);

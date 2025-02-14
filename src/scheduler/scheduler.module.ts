@@ -8,6 +8,7 @@ import { MailerModule } from '@/mailer/mailer.module';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { UsersModule } from '@/users/users.module';
 import { TimeModule } from '@/time/time.module';
+import { QueueModule } from '@/queue/queue.module';
 
 @Module({
   providers: [SchedulerService],
@@ -17,7 +18,7 @@ import { TimeModule } from '@/time/time.module';
     DomainsModule,
     UsersModule,
     TimeModule,
-    MailerModule,
+    QueueModule,
     WinstonLoggerModule,
   ],
 })
