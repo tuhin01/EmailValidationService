@@ -133,6 +133,14 @@ export class SchedulerService {
       return;
     }
 
+    let completeStatus: UpdateBulkFileDto = {
+      file_status: BulkFileStatus.PROCESSING,
+    };
+    await this.bulkFilesService.updateBulkFile(
+      firstGrayListFile.id,
+      completeStatus,
+    );
+
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
     console.log(processedEmails.length);
     if (!processedEmails.length) {
@@ -143,7 +151,7 @@ export class SchedulerService {
     // Generate all csv and update DB with updated counts.
     await this.generateBulkFileResultCsv(firstGrayListFile.id);
 
-    const completeStatus: UpdateBulkFileDto = {
+    completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
     };
     await this.bulkFilesService.updateBulkFile(
