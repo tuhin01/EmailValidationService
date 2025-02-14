@@ -634,6 +634,7 @@ export class DomainService {
     // If we did then just return the previous result
     const processedEmail: ProcessedEmail = await this.getProcessedEmail(email);
     if (processedEmail) {
+      console.log(processedEmail.email_address);
       delete processedEmail.id;
       delete processedEmail.created_at;
       return { ...emailStatus, ...processedEmail };
