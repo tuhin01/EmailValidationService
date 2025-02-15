@@ -1,20 +1,20 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
-import { PROCESS_EMAIL_SEND_QUEUE, PROCESS_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
+import { PROCESS_EMAIL_SEND_QUEUE, PROCESS_GRAY_LIST_QUEUE, GRAY_LIST_QUEUE } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
-import { MailerService } from '@/mailer/mailer.service';
+import { EmailValidationResponseType } from '@/common/utility/email-status-type';
 
-@Processor(TASK_QUEUE)
+@Processor(GRAY_LIST_QUEUE)
 export class QueueProcessor {
   constructor(
     private readonly queueService: QueueService,
   ) {
   }
 
-  @Process(PROCESS_QUEUE)
-  async handleQueueTask(job: Job<{ to: string; subject: string; template: string; context: any }>) {
-    console.log('Processing email:', job.data);
-    // return this.queueService.sendEmail(job.data);
+  @Process(PROCESS_GRAY_LIST_QUEUE)
+  async handleQueueTask(job: Job<EmailValidationResponseType>) {
+    console.log('Processing Queue:', job.data);
+    return this.queueService.runGrayListCheck(job.data);
   }
 
   @Process(PROCESS_EMAIL_SEND_QUEUE)

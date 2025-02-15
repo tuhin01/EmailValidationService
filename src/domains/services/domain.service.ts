@@ -33,7 +33,7 @@ import { CreateDomainDto } from '@/domains/dto/create-domain.dto';
 import { UpdateDomainDto } from '@/domains/dto/update-domain.dto';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
-import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
+import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
@@ -153,10 +153,12 @@ export class DomainService {
         {
           email_sub_status: EmailReason.IP_BLOCKED,
           bulk_file_id: bulkFileId,
+          retry: RetryStatus.PENDING,
         },
         {
           email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
           bulk_file_id: bulkFileId,
+          retry: RetryStatus.PENDING,
         },
       ],
       order: {
@@ -225,6 +227,14 @@ export class DomainService {
     const existingDomain = await ProcessedEmail.findOne({ where: { id: processedEmailId } });
     const updatedData = { ...existingDomain, ...data };
     await ProcessedEmail.update(processedEmailId, updatedData);
+  }
+
+  async updateProcessedEmailByEmail(email: string, data) {
+    const existingDomain = await ProcessedEmail.findOne({ where: { email_address: email } });
+    if (existingDomain) {
+      const updatedData = { ...existingDomain, ...data };
+      await ProcessedEmail.update(existingDomain.id, updatedData);
+    }
   }
 
   async remove(domainRemove: string) {
@@ -478,7 +488,7 @@ export class DomainService {
           // When no other condition is true, handle it for all other codes
           // Response code starts with "4" - Temporary error, and we should retry later
           // Response code starts with "5" - Permanent error and must not retry
-          if(dataStr) {
+          if (dataStr) {
             // Log the response
             if (!dataStr.startsWith('2')) {
               this.winstonLoggerService.error(`verifySmtp() else - ${email}`, dataStr);
@@ -499,7 +509,7 @@ export class DomainService {
       });
 
       socket.on('close', () => {
-        console.log("Closing...");
+        console.log('Closing...');
         // Log the error, if there are any
         if (dataStr) {
           const responseCode = parseInt(dataStr.substring(0, 3));
@@ -639,7 +649,7 @@ export class DomainService {
       delete processedEmail.created_at;
       return { ...emailStatus, ...processedEmail };
     } else {
-      console.log("Processed email not found for " + email);
+      console.log('Processed email not found for ' + email);
     }
 
     try {
@@ -727,9 +737,11 @@ export class DomainService {
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (smtpResponse.status === EmailStatus.VALID) {
         const domainInfo: any = await this.getDomainAge(domain, dbDomain);
-        emailStatus.domain_age_days = domainInfo.domain_age_days;
         dbDomain.domain_age_days = domainInfo.domain_age_days;
         await dbDomain.save();
+
+        emailStatus.domain_age_days = domainInfo.domain_age_days;
+        emailStatus.retry = RetryStatus.COMPLETE;
       }
       await this.saveProcessedEmail(emailStatus, user, bulkFileId);
       // If everything goes well, then return the emailStatus

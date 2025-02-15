@@ -4,9 +4,11 @@ import { BullModule } from '@nestjs/bull';
 import * as process from 'node:process';
 import { config } from 'dotenv';
 
-import { TASK_QUEUE } from '@/common/utility/constant';
+import { GRAY_LIST_QUEUE } from '@/common/utility/constant';
 import { QueueProcessor } from '@/queue/queue.processor';
 import { MailerModule } from '@/mailer/mailer.module';
+import { DomainsModule } from '@/domains/domains.module';
+import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 
 config(); // Load .env file into process.env
 
@@ -20,9 +22,11 @@ config(); // Load .env file into process.env
       prefix: 'queue_service:', // Use a unique prefix
     }),
     BullModule.registerQueue({
-      name: TASK_QUEUE,
+      name: GRAY_LIST_QUEUE,
     }),
     MailerModule,
+    DomainsModule,
+    WinstonLoggerModule
   ],
   providers: [QueueService, QueueProcessor],
   exports: [QueueService, BullModule],

@@ -113,32 +113,31 @@ export class SchedulerService {
       return;
     }
 
-    // Check if we should run the gray list check or not at this time.
-    const shouldRun: boolean = this.timeService.shouldRunGrayListCheck(firstGrayListFile);
-    console.log({ shouldRun });
-    if (!shouldRun) {
-      return;
-    }
+    // // Check if we should run the gray list check or not at this time.
+    // const shouldRun: boolean = this.timeService.shouldRunGrayListCheck(firstGrayListFile);
+    // console.log({ shouldRun });
+    // if (!shouldRun) {
+    //   return;
+    // }
 
-    let completeStatus: UpdateBulkFileDto = {
-      file_status: BulkFileStatus.PROCESSING,
-    };
-    await this.bulkFilesService.updateBulkFile(
-      firstGrayListFile.id,
-      completeStatus,
-    );
+    // let completeStatus: UpdateBulkFileDto = {
+    //   file_status: BulkFileStatus.PROCESSING,
+    // };
+    // await this.bulkFilesService.updateBulkFile(
+    //   firstGrayListFile.id,
+    //   completeStatus,
+    // );
 
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
     console.log(processedEmails.length);
-    if (!processedEmails.length) {
+    if (processedEmails.length) {
+      console.log("GrayList is in progress...");
       return;
     }
-    await this.__bulkGrayListValidate(processedEmails);
-
     // Generate all csv and update DB with updated counts.
     await this.generateBulkFileResultCsv(firstGrayListFile.id);
 
-    completeStatus = {
+    let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
     };
     await this.bulkFilesService.updateBulkFile(
@@ -185,55 +184,6 @@ export class SchedulerService {
     );
   }
 
-  private async __bulkGrayListValidate(emails: ProcessedEmail[]) {
-    // Bottleneck for rate limiting (CommonJS compatible)
-    const limiter = new Bottleneck({
-      maxConcurrent: 1, // Adjust based on your testing
-      minTime: 300, // 200ms delay between requests (adjustable)
-    });
-
-    const validationPromises: Promise<any>[] = emails.map((processedEmail: ProcessedEmail) => limiter.schedule(async () => {
-      console.log(`Gray Verify ${processedEmail.email_address} started`);
-      // Update retry and email status in DB
-      let updateData: any = {
-        retry: RetryStatus.IN_PROGRESS,
-      };
-      await this.domainService.updateProcessedEmail(processedEmail.id, updateData);
-
-      const domain: Domain = await this.domainService.findOne(processedEmail.domain);
-      let emailStatus: EmailStatusType;
-      try {
-        const allMxRecordHost: MXRecord[] = JSON.parse(domain.mx_record_hosts);
-        const index = Math.floor(Math.random() * allMxRecordHost.length);
-        const mxRecordHost = allMxRecordHost[index].exchange;
-
-        emailStatus = await this.domainService.verifySmtp(processedEmail.email_address, mxRecordHost);
-      } catch (e) {
-        emailStatus = { ...e };
-        this.winstonLoggerService.error('Gray List Error', e);
-      }
-      updateData = {
-        retry: RetryStatus.COMPLETE,
-      };
-      // Only update email_status in DB when retry finds it as valid.
-      // We need to do this to make sure
-      if (emailStatus.status === EmailStatus.VALID) {
-        updateData = {
-          email_status: emailStatus.status,
-          retry: RetryStatus.COMPLETE,
-        };
-      }
-      await this.domainService.updateProcessedEmail(processedEmail.id, updateData);
-      return emailStatus;
-    }));
-
-    // Wait for all validations to complete
-    const results = await Promise.allSettled(validationPromises);
-    return results
-      .filter(result => result.status === 'fulfilled')
-      .map(result => (result as PromiseFulfilledResult<any>).value);
-
-  }
 
   private async __saveValidationResultsInCsv(results: EmailValidationResponseType[], folderName: string) {
     let invalid_email_count = 0;
@@ -253,6 +203,7 @@ export class SchedulerService {
       [EmailStatus.SPAMTRAP]: [],
       [EmailStatus.VALID]: [],
     };
+    // TODO - Add email to queue for gray-list verification.
     results.forEach((email: EmailValidationResponseType) => {
       if (email.email_status === EmailStatus.VALID) {
         fileWithStatusTypes[EmailStatus.VALID].push(email);
@@ -294,7 +245,6 @@ export class SchedulerService {
         do_not_mail_count++;
       }
     });
-
 
     for (const fileType of Object.keys(fileWithStatusTypes)) {
       const fileName = folderName + '/' + fileType + '.csv';
@@ -372,7 +322,13 @@ export class SchedulerService {
             user,
             bulkFile.id,
           );
-          // console.log(validationResponse.email_status);
+          // Add emails to GraList check
+          if (
+            validationResponse.email_sub_status === EmailReason.IP_BLOCKED ||
+            validationResponse.email_sub_status === EmailReason.MAILBOX_NOT_FOUND
+          ) {
+            await this.queueService.addGraListEmailToQueue(validationResponse);
+          }
           return {
             ...record,
             ...validationResponse,

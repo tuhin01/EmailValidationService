@@ -1,3 +1,5 @@
+import { RetryStatus } from '@/domains/entities/processed_email.entity';
+
 export type EmailValidationResponseType = {
   email_address: string;
   email_status?: string;
@@ -6,6 +8,7 @@ export type EmailValidationResponseType = {
   domain?: string;
   free_email?: boolean;
   domain_age_days?: number;
+  retry?: RetryStatus;
 };
 
 /** Possible email verification statuses */
