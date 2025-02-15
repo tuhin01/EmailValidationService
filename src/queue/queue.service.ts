@@ -51,11 +51,11 @@ export class QueueService {
   }
 
   async runGrayListCheck(emailQueueData: any) {
-    console.log(emailQueueData);
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = this.limiter;
 
-    const emails = [emailQueueData.emailSmtpResponse];
+    const emails = [emailQueueData];
+    console.log(emails);
 
     const validationPromises: Promise<any>[] = emails.map((emailResponse: EmailValidationResponseType) => limiter.schedule(async () => {
       console.log(`Gray Verify ${emailResponse.email_address} started`);
