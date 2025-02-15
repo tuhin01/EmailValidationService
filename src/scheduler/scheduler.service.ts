@@ -3,7 +3,6 @@ import * as fs from 'node:fs';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { parse } from 'csv-parse';
-import { Queue } from 'bull';
 
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
@@ -15,7 +14,6 @@ import {
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
-import { InjectQueue } from '@nestjs/bull';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import Bottleneck from 'bottleneck';
 import { UsersService } from '@/users/users.service';
@@ -25,9 +23,8 @@ import * as path from 'path';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { TimeService } from '@/time/time.service';
-import { LEAD_WRAP, PROCESS_EMAIL_SEND_QUEUE, TASK_QUEUE } from '@/common/utility/constant';
+import { LEAD_WRAP } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
-import { JobOptions as BullJobOptions } from 'bull';
 
 @Injectable()
 export class SchedulerService {
@@ -95,19 +92,6 @@ export class SchedulerService {
       );
       console.log('File Status updated to - COMPLETE');
 
-      const to = `${LEAD_WRAP} <${user.email_address}>`;
-      const emailData = {
-        to,
-        subject: 'Email validation is complete',
-        template: 'welcome',
-        context: { 'name': `${user.first_name}` },
-      };
-      const jobOptions: BullJobOptions = {
-        attempts: 1, // Retry 3 times if failed
-        delay: 0,
-      };
-      await this.queueService.addEmailToQueue(emailData, jobOptions);
-
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
       console.log(e);
@@ -161,6 +145,15 @@ export class SchedulerService {
       firstGrayListFile.id,
       completeStatus,
     );
+
+    const to = `${LEAD_WRAP} <${user.email_address}>`;
+    const emailData = {
+      to,
+      subject: 'Email validation is complete',
+      template: 'welcome',
+      context: { 'name': `${user.first_name}` },
+    };
+    await this.queueService.addEmailToQueue(emailData);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {
