@@ -7,12 +7,7 @@ import { parse } from 'csv-parse';
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
-import {
-  EmailReason,
-  EmailStatus,
-  EmailStatusType,
-  EmailValidationResponseType,
-} from '@/common/utility/email-status-type';
+import { EmailReason, EmailStatus, EmailValidationResponseType } from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import Bottleneck from 'bottleneck';
@@ -20,8 +15,7 @@ import { UsersService } from '@/users/users.service';
 import { User } from '@/users/entities/user.entity';
 import * as process from 'node:process';
 import * as path from 'path';
-import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
-import { Domain, MXRecord } from '@/domains/entities/domain.entity';
+import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { TimeService } from '@/time/time.service';
 import { LEAD_WRAP } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
@@ -75,7 +69,7 @@ export class SchedulerService {
         do_not_mail_count,
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
-      const updateData: UpdateBulkFileDto = {
+      const bulkFileUpdateData: UpdateBulkFileDto = {
         file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
         valid_email_count,
@@ -88,8 +82,21 @@ export class SchedulerService {
       };
       await this.bulkFilesService.updateBulkFile(
         firstPendingFile.id,
-        updateData,
+        bulkFileUpdateData,
       );
+
+      // Send email notification if the file status is complete
+      if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
+        const to = `${LEAD_WRAP} <${user.email_address}>`;
+        const emailData = {
+          to,
+          subject: 'Email validation is complete',
+          template: 'welcome',
+          context: { 'name': `${user.first_name}` },
+        };
+        await this.queueService.addEmailToQueue(emailData);
+      }
+
       console.log('File Status updated to - COMPLETE');
 
     } catch (e) {
@@ -113,25 +120,10 @@ export class SchedulerService {
       return;
     }
 
-    // // Check if we should run the gray list check or not at this time.
-    // const shouldRun: boolean = this.timeService.shouldRunGrayListCheck(firstGrayListFile);
-    // console.log({ shouldRun });
-    // if (!shouldRun) {
-    //   return;
-    // }
-
-    // let completeStatus: UpdateBulkFileDto = {
-    //   file_status: BulkFileStatus.PROCESSING,
-    // };
-    // await this.bulkFilesService.updateBulkFile(
-    //   firstGrayListFile.id,
-    //   completeStatus,
-    // );
-
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
     console.log(processedEmails.length);
     if (processedEmails.length) {
-      console.log("GrayList is in progress...");
+      console.log('GrayList is in progress...');
       return;
     }
     // Generate all csv and update DB with updated counts.
@@ -189,6 +181,7 @@ export class SchedulerService {
     let invalid_email_count = 0;
     let do_not_mail_count = 0;
     let unknown_count = 0;
+    let temporary_blocked = 0;
     const fileWithStatusTypes = {
       [EmailReason.ROLE_BASED]: [],
       [EmailReason.UNVERIFIABLE_EMAIL]: [],
@@ -241,8 +234,14 @@ export class SchedulerService {
         email.email_sub_status === EmailReason.IP_BLOCKED
       ) {
         unknown_count++;
+        temporary_blocked++;
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
+      } else if (
+        email.email_sub_status === EmailStatus.TEMPORARILY_UNAVAILABLE ||
+        email.email_sub_status === EmailStatus.SERVICE_UNAVAILABLE
+      ) {
+        temporary_blocked++;
       }
     });
 
