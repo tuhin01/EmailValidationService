@@ -230,16 +230,13 @@ export class SchedulerService {
       ) {
         invalid_email_count++;
       } else if (
-        email.email_status === EmailStatus.UNKNOWN ||
-        email.email_sub_status === EmailReason.IP_BLOCKED
+        email.email_status === EmailStatus.UNKNOWN
       ) {
         unknown_count++;
-        temporary_blocked++;
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
       } else if (
-        email.email_sub_status === EmailStatus.TEMPORARILY_UNAVAILABLE ||
-        email.email_sub_status === EmailStatus.SERVICE_UNAVAILABLE
+        email.email_sub_status === EmailReason.IP_BLOCKED
       ) {
         temporary_blocked++;
       }
@@ -268,7 +265,7 @@ export class SchedulerService {
       valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
       invalid_email_count,
       unknown_count,
-      temporary_blocked: fileWithStatusTypes[EmailStatus.TEMPORARILY_UNAVAILABLE].length,
+      temporary_blocked,
       catch_all_count: fileWithStatusTypes[EmailStatus.CATCH_ALL].length,
       do_not_mail_count,
       spam_trap_count: fileWithStatusTypes[EmailStatus.SPAMTRAP].length,

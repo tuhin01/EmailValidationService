@@ -737,6 +737,7 @@ export class DomainService {
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (
         smtpResponse.status === EmailStatus.VALID ||
+        smtpResponse.status === EmailStatus.UNKNOWN ||
         smtpResponse.status === EmailStatus.CATCH_ALL
       ) {
         // const domainInfo: any = await this.getDomainAge(domain, dbDomain);

@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 
 export enum RetryStatus {
-  IN_PROGRESS = 'in_progress',
   COMPLETE = 'complete',
   PENDING = 'pending',
 }
