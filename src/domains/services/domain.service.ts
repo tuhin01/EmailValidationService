@@ -735,12 +735,15 @@ export class DomainService {
       emailStatus.email_sub_status = smtpResponse.reason;
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
-      if (smtpResponse.status === EmailStatus.VALID) {
-        const domainInfo: any = await this.getDomainAge(domain, dbDomain);
-        dbDomain.domain_age_days = domainInfo.domain_age_days;
-        await dbDomain.save();
+      if (
+        smtpResponse.status === EmailStatus.VALID ||
+        smtpResponse.status === EmailStatus.CATCH_ALL
+      ) {
+        // const domainInfo: any = await this.getDomainAge(domain, dbDomain);
+        // dbDomain.domain_age_days = domainInfo.domain_age_days;
+        // await dbDomain.save();
 
-        emailStatus.domain_age_days = domainInfo.domain_age_days;
+        // emailStatus.domain_age_days = domainInfo.domain_age_days;
         emailStatus.retry = RetryStatus.COMPLETE;
       }
       await this.saveProcessedEmail(emailStatus, user, bulkFileId);
