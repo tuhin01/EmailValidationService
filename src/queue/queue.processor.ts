@@ -20,7 +20,9 @@ export class QueueProcessor {
   @Process(PROCESS_EMAIL_SEND_QUEUE)
   async handleSendEmail(job: Job<{ to: string; subject: string; template: string; context: any }>) {
     console.log('Email Sending...');
-    return this.queueService.processEmailQueue(job.data);
+    const emailResponse = await this.queueService.processEmailQueue(job.data);
+    console.log(emailResponse);
+    return emailResponse;
   }
 
 }

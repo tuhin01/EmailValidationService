@@ -34,18 +34,6 @@ export class MailerService {
     );
   }
 
-  async verifySMTP() {
-    try {
-      console.log("A");
-      const response = await this.transporter.verify();
-      console.log('✅ SMTP connection is valid!');
-      return response;
-    } catch (error) {
-      console.error('❌ SMTP connection failed:', error);
-      return error;
-    }
-  }
-
   async sendEmail({ to, subject, template, context, attachments = [] }) {
     const mailOptions = {
       from: process.env.SMTP_FROM_EMAIL,
