@@ -418,6 +418,7 @@ export class DomainService {
       socket.on('data', (data) => {
         dataStr = data.toString();
         // console.log(data);
+        console.log({ stage });
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           // Check if the socket is writable before writing
@@ -484,7 +485,6 @@ export class DomainService {
           return;
 
         } else {
-          console.log(dataStr);
           // When no other condition is true, handle it for all other codes
           // Response code starts with "4" - Temporary error, and we should retry later
           // Response code starts with "5" - Permanent error and must not retry
@@ -510,7 +510,6 @@ export class DomainService {
 
       socket.on('close', () => {
         console.log('Closing...', stage, commands.length);
-        console.log(dataStr);
         // If the socket is closed by the SMTP server without letting us complete
         // all commands then it probably blocked our IP. But if all commands
         // completed and SMTP response has code above 400, the email address is invalid
@@ -559,6 +558,67 @@ export class DomainService {
         return;
       });
     });
+  }
+
+  public parseEmailResponseData(
+    data: string,
+    email: string,
+  ): EmailStatusType {
+    if (data.includes(SMTPResponseCode.TWO_50.smtp_code.toString())) {
+      return SMTPResponseCode.TWO_50;
+    } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code.toString())) {
+      return SMTPResponseCode.TWO_51;
+    } else if (
+      data.includes(SMTPResponseCode.FIVE_50.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FIVE_56.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FIVE_05.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FIVE_51.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FIVE_00.smtp_code.toString())
+    ) {
+      let error: EmailStatusType = { reason: undefined, status: undefined };
+      this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, data);
+
+      // Check if "data" has any of the strings from 'ipBlockedStringsArray'
+      for (const str of ipBlockedStringsArray) {
+        if (data.includes(str)) {
+          error.status = EmailStatus.SERVICE_UNAVAILABLE;
+          error.reason = EmailReason.IP_BLOCKED;
+          return error;
+        }
+      }
+
+      return SMTPResponseCode.FIVE_50;
+    } else if (
+      // Detect Gray listing (Temporary Failures)
+      data.includes(SMTPResponseCode.FOUR_21.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FOUR_50.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FOUR_51.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FOUR_52.smtp_code.toString())
+    ) {
+      return SMTPResponseCode.FOUR_21;
+    } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code.toString())) {
+      return SMTPResponseCode.FIVE_53;
+    } else if (data.includes(SMTPResponseCode.FIVE_54.smtp_code.toString())) {
+      return SMTPResponseCode.FIVE_54;
+    } else {
+      console.log(data);
+      // When no other condition is true, handle it for all other codes
+      // Response code starts with "4" - Temporary error, and we should retry later
+      // Response code starts with "5" - Permanent error and must not retry
+      if (data) {
+        // Log the response
+        if (!data.startsWith('2')) {
+          this.winstonLoggerService.error(`verifySmtp() else - ${email}`, data);
+        }
+
+        if (data.startsWith('4')) {
+          return SMTPResponseCode.FOUR_51;
+        } else if (data.startsWith('5')) {
+          return SMTPResponseCode.FIVE_50;
+        }
+      }
+    }
+
   }
 
   checkDomainSpamDatabaseList(domain: string) {
@@ -706,6 +766,7 @@ export class DomainService {
         domain,
         dbDomain,
       );
+      console.log({ allMxRecordHost });
 
       const index = Math.floor(Math.random() * allMxRecordHost.length);
       const mxRecordHost = allMxRecordHost[index].exchange;
@@ -726,7 +787,16 @@ export class DomainService {
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
         const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
-        await this.catchAllCheck(catchAllEmail, mxRecordHost);
+        const catchAllResponse: any = await this.catchAllCheck(catchAllEmail, mxRecordHost);
+        console.log({ catchAllResponse });
+        // If catchall check response timeout then
+        if (catchAllResponse.reason === EmailReason.SMTP_TIMEOUT) {
+          // TODO - If timeout then we must trigger Verify+ (like zerobounce)
+          emailStatus.email_status = EmailStatus.UNKNOWN;
+          emailStatus.email_sub_status = EmailReason.SMTP_TIMEOUT;
+          emailStatus.retry = RetryStatus.COMPLETE;
+          return emailStatus;
+        }
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
