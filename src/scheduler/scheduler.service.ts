@@ -70,7 +70,6 @@ export class SchedulerService {
         do_not_mail_count,
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
-      console.log(temporary_blocked);
       const bulkFileUpdateData: UpdateBulkFileDto = {
         file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
@@ -182,7 +181,7 @@ export class SchedulerService {
       user,
       bulkFile,
       downloadLink: 'https://leadwrap.com/downlaod/',
-      unsubscribeLink: 'https://leadwrap.com/downlaod/',
+      unsubscribeLink: 'https://leadwrap.com/unsubscribe/',
     };
     const emailData = {
       to,
