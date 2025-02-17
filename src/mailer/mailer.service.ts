@@ -46,13 +46,14 @@ export class MailerService {
     }
   }
 
-  async sendEmail({ to, subject, template, context }) {
+  async sendEmail({ to, subject, template, context, attachments = [] }) {
     const mailOptions = {
       from: process.env.SMTP_FROM_EMAIL,
       to,
       subject,
       template, // Handlebars template name (without .hbs)
       context, // Dynamic data for template
+      attachments
     };
 
     try {

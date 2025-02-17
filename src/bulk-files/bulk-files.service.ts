@@ -152,4 +152,20 @@ export class BulkFilesService {
     }
     return errors;
   }
+
+  async __getAllFilesInFolder(folderPath: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      fs.readdir(folderPath, (err, files) => {
+        if (err) {
+          reject(`Unable to scan directory: ${err}`);
+        } else {
+          // Filter out directories and return only files
+          const filePaths = files
+            .map((file) => path.join(folderPath, file))
+            .filter((filePath) => fs.statSync(filePath).isFile());
+          resolve(filePaths);
+        }
+      });
+    });
+  }
 }

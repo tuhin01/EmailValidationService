@@ -19,6 +19,7 @@ import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { TimeService } from '@/time/time.service';
 import { LEAD_WRAP } from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
+import { Attachment } from 'nodemailer/lib/mailer';
 
 @Injectable()
 export class SchedulerService {
@@ -88,14 +89,7 @@ export class SchedulerService {
 
       // Send email notification if the file status is complete
       if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-        const to = `${LEAD_WRAP} <${user.email_address}>`;
-        const emailData = {
-          to,
-          subject: 'Email validation is complete',
-          template: 'welcome',
-          context: { 'name': `${user.first_name}` },
-        };
-        await this.queueService.addEmailToQueue(emailData);
+        await this.__sendEmailNotification(user, csvSavePath);
       }
 
       console.log('File Status updated to - COMPLETE');
@@ -138,14 +132,7 @@ export class SchedulerService {
       completeStatus,
     );
 
-    const to = `${LEAD_WRAP} <${user.email_address}>`;
-    const emailData = {
-      to,
-      subject: 'Email validation is complete',
-      template: 'welcome',
-      context: { 'name': `${user.first_name}` },
-    };
-    await this.queueService.addEmailToQueue(emailData);
+    await this.__sendEmailNotification(user, firstGrayListFile.validation_file_path);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {
@@ -177,6 +164,28 @@ export class SchedulerService {
     );
   }
 
+
+  private async __sendEmailNotification(user: User, csvSavePath: string) {
+    const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
+    const attachments: Attachment[] = [];
+    // Get all csv files from the 'csvSavePath to send as email attachment
+    const csvFiles = await this.bulkFilesService.__getAllFilesInFolder(csvSavePath);
+    if (csvFiles.length) {
+      csvFiles.forEach(file => {
+        attachments.push({
+          path: file,
+        });
+      });
+    }
+    const emailData = {
+      to,
+      subject: 'Email validation is complete',
+      template: 'welcome',
+      context: { 'name': `${user.first_name}` },
+      attachments,
+    };
+    await this.queueService.addEmailToQueue(emailData);
+  }
 
   private async __saveValidationResultsInCsv(results: EmailValidationResponseType[], folderName: string) {
     let invalid_email_count = 0;

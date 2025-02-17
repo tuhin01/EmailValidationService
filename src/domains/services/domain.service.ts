@@ -417,7 +417,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        console.log(data);
+        // console.log(data);
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
           // Check if the socket is writable before writing
