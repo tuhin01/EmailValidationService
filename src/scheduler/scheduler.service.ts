@@ -181,7 +181,8 @@ export class SchedulerService {
     const emailDynamicData = {
       user,
       bulkFile,
-      downloadLink: 'https://leadwrap.com/downlaod/'
+      downloadLink: 'https://leadwrap.com/downlaod/',
+      unsubscribeLink: 'https://leadwrap.com/downlaod/',
     };
     const emailData = {
       to,
