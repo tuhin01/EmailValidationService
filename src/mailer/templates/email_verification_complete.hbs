@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      color: #333;
+    }
+    p {
+      font-size: 16px;
+      color: #555;
+    }
+    .button {
+      display: inline-block;
+      background-color: #007BFF;
+      color: white;
+      padding: 12px 20px;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Email Verification Report</h2>
+  <p>Hello {{user.first_name}},</p>
+  <p>Your email verification process is complete. Below are the details:</p>
+
+  <ul>
+    <li><strong>Total Emails Verified:</strong> {{bulkFile.total_email_count}}</li>
+    <li><strong>Valid Emails:</strong> {{bulkFile.valid_email_count}}</li>
+    <li><strong>Catch-All Emails:</strong> {{bulkFile.catch_all_count}}</li>
+    <li><strong>Blacklisted Emails:</strong> {{bulkFile.spam_strap_count}}</li>
+    <li><strong>Invalid Emails:</strong> {{bulkFile.invalid_email_count}}</li>
+    <li><strong>Mailbox Not Found Emails:</strong> {{bulkFile.unknown_count}}</li>
+  </ul>
+
+  <p>You can download the attached report for full details.</p>
+
+  <p><a class="button" href="{{downloadLink}}">Download Report</a></p>
+
+  <p class="footer">If you have any questions, contact us at arahim@leadwrap.com</p>
+</div>
+</body>
+</html>

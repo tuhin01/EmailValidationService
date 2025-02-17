@@ -89,7 +89,7 @@ export class SchedulerService {
 
       // Send email notification if the file status is complete
       if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-        await this.__sendEmailNotification(user, csvSavePath);
+        await this.__sendEmailNotification(user, firstPendingFile.id);
       }
 
       console.log('File Status updated to - COMPLETE');
@@ -132,7 +132,7 @@ export class SchedulerService {
       completeStatus,
     );
 
-    await this.__sendEmailNotification(user, firstGrayListFile.validation_file_path);
+    await this.__sendEmailNotification(user, firstGrayListFile.id);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {
@@ -165,11 +165,12 @@ export class SchedulerService {
   }
 
 
-  private async __sendEmailNotification(user: User, csvSavePath: string) {
+  private async __sendEmailNotification(user: User, bulkFileId: number) {
+    const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(bulkFileId);
     const to = `${user.first_name} ${user.last_name} <${user.email_address}>`;
     const attachments: Attachment[] = [];
     // Get all csv files from the 'csvSavePath to send as email attachment
-    const csvFiles = await this.bulkFilesService.__getAllFilesInFolder(csvSavePath);
+    const csvFiles = await this.bulkFilesService.__getAllFilesInFolder(bulkFile.validation_file_path);
     if (csvFiles.length) {
       csvFiles.forEach(file => {
         attachments.push({
@@ -177,11 +178,16 @@ export class SchedulerService {
         });
       });
     }
+    const emailDynamicData = {
+      user,
+      bulkFile,
+      downloadLink: 'https://leadwrap.com/downlaod/'
+    };
     const emailData = {
       to,
-      subject: 'Email validation is complete',
-      template: 'welcome',
-      context: { 'name': `${user.first_name}` },
+      subject: 'LearWrap Email Verification is Complete',
+      template: 'email_verification_complete',
+      context: emailDynamicData,
       attachments,
     };
     await this.queueService.addEmailToQueue(emailData);
