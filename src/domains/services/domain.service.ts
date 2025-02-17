@@ -509,9 +509,12 @@ export class DomainService {
       });
 
       socket.on('close', () => {
-        console.log('Closing...');
-        // Log the error, if there are any
-        if (dataStr) {
+        console.log('Closing...', stage, commands.length);
+        console.log(dataStr);
+        // If the socket is closed by the SMTP server without letting us complete
+        // all commands then it probably blocked our IP. But if all commands
+        // completed and SMTP response has code above 400, the email address is invalid
+        if (dataStr && stage === commands.length) {
           const responseCode = parseInt(dataStr.substring(0, 3));
           if (responseCode >= 400) {
             const error: EmailStatusType = {

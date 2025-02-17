@@ -69,6 +69,7 @@ export class SchedulerService {
         do_not_mail_count,
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
+      console.log(temporary_blocked);
       const bulkFileUpdateData: UpdateBulkFileDto = {
         file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
@@ -196,7 +197,7 @@ export class SchedulerService {
       [EmailStatus.SPAMTRAP]: [],
       [EmailStatus.VALID]: [],
     };
-    // TODO - Add email to queue for gray-list verification.
+
     results.forEach((email: EmailValidationResponseType) => {
       if (email.email_status === EmailStatus.VALID) {
         fileWithStatusTypes[EmailStatus.VALID].push(email);
