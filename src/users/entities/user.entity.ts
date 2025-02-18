@@ -38,6 +38,9 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status: UserStatus;
 
+  @Column({ type: 'boolean', default: null })
+  verify_plus: boolean;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 }

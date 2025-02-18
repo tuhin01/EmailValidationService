@@ -828,10 +828,10 @@ export class DomainService {
         mxRecordHost,
       );
       console.log({ smtpResponse });
-      // If - It's a free email and smtp response is a 'timeout' then we must trigger Verify+
-      // else - Business email Verify+ check is done in catch-all block. So we do not do it again here.
-      if (smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
-        // If timeout then we must trigger Verify+ (like zerobounce)
+      // If - User enabled verify+ and it's a free email and smtp response
+      // is a 'timeout' then we must trigger Verify+
+      // If timeout then we must trigger Verify+ (like zerobounce)
+      if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
         const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
         emailStatus.email_status = verifyPlusResponse.status;
         emailStatus.email_sub_status = verifyPlusResponse.reason;
