@@ -144,8 +144,7 @@ export class DomainService {
           processedEmail.email_status === EmailStatus.VALID ||
           processedEmail.email_status === EmailStatus.CATCH_ALL ||
           processedEmail.email_status === EmailStatus.SPAMTRAP ||
-          processedEmail.email_status === EmailStatus.DO_NOT_MAIL ||
-          processedEmail.email_sub_status === EmailReason.NO_MX_FOUND
+          processedEmail.email_status === EmailStatus.DO_NOT_MAIL
         ) {
           return processedEmail;
         }
