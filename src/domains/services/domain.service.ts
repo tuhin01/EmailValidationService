@@ -37,6 +37,7 @@ import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
+import { MailerService } from '@/mailer/mailer.service';
 
 @Injectable()
 export class DomainService {
@@ -44,6 +45,7 @@ export class DomainService {
     private dataSource: DataSource,
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
+    private mailerService: MailerService,
     private winstonLoggerService: WinstonLoggerService,
   ) {
   }
@@ -138,9 +140,15 @@ export class DomainService {
         processedEmail.created_at,
       );
       if (dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP) {
-        return processedEmail;
-      } else {
-        return null;
+        if (
+          processedEmail.email_status === EmailStatus.VALID ||
+          processedEmail.email_status === EmailStatus.CATCH_ALL ||
+          processedEmail.email_status === EmailStatus.SPAMTRAP ||
+          processedEmail.email_status === EmailStatus.DO_NOT_MAIL ||
+          processedEmail.email_sub_status === EmailReason.NO_MX_FOUND
+        ) {
+          return processedEmail;
+        }
       }
     }
     return null;
@@ -367,15 +375,13 @@ export class DomainService {
   }
 
   async catchAllCheck(email, mxHost) {
-    console.log({ email });
     return new Promise(async (resolve, reject) => {
       try {
-        const isCatchAllValid: EmailStatusType = await this.verifySmtp(
+        const catchAllResponse: EmailStatusType = await this.verifySmtp(
           email,
           mxHost,
         );
-        console.log({ isCatchAllValid });
-        if (isCatchAllValid.status === EmailStatus.VALID) {
+        if (catchAllResponse.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
             status: EmailStatus.CATCH_ALL,
             reason: EmailReason.EMPTY,
@@ -384,7 +390,7 @@ export class DomainService {
 
           return;
         }
-        resolve(true);
+        resolve(catchAllResponse);
       } catch (e) {
         resolve(e);
       }
@@ -395,7 +401,7 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       let socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
-      socket.setTimeout(5000);
+      socket.setTimeout(10000);
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
       const commands = [
@@ -417,7 +423,7 @@ export class DomainService {
       // Parse the SMTP response based on response code listed above
       socket.on('data', (data) => {
         dataStr = data.toString();
-        // console.log(data);
+        console.log(data);
         console.log({ stage });
 
         if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
@@ -560,7 +566,7 @@ export class DomainService {
     });
   }
 
-  public parseEmailResponseData(
+  private __parseEmailResponseData(
     data: string,
     email: string,
   ): EmailStatusType {
@@ -709,6 +715,8 @@ export class DomainService {
     if (processedEmail) {
       console.log(processedEmail.email_address);
       delete processedEmail.id;
+      delete processedEmail.user_id;
+      delete processedEmail.bulk_file_id;
       delete processedEmail.created_at;
       return { ...emailStatus, ...processedEmail };
     } else {
@@ -766,7 +774,6 @@ export class DomainService {
         domain,
         dbDomain,
       );
-      console.log({ allMxRecordHost });
 
       const index = Math.floor(Math.random() * allMxRecordHost.length);
       const mxRecordHost = allMxRecordHost[index].exchange;
@@ -778,7 +785,7 @@ export class DomainService {
           mx_record_hosts: JSON.stringify(allMxRecordHost),
           domain_ip: '',
         };
-        dbDomain = await this.create(createDomainDto);
+        await this.create(createDomainDto);
       }
 
       if (!isFreeEmailDomain) {
@@ -790,13 +797,18 @@ export class DomainService {
         const catchAllResponse: any = await this.catchAllCheck(catchAllEmail, mxRecordHost);
         console.log({ catchAllResponse });
         // If catchall check response timeout then
-        if (catchAllResponse.reason === EmailReason.SMTP_TIMEOUT) {
-          // TODO - If timeout then we must trigger Verify+ (like zerobounce)
-          emailStatus.email_status = EmailStatus.UNKNOWN;
-          emailStatus.email_sub_status = EmailReason.SMTP_TIMEOUT;
-          emailStatus.retry = RetryStatus.COMPLETE;
-          return emailStatus;
-        }
+        // if (catchAllResponse.reason === EmailReason.SMTP_TIMEOUT) {
+        //   // If timeout then we must trigger Verify+ (like zerobounce)
+        //   // If catch-all email response is a 'timeout' then we can immediately trigger Verify+
+        //   // Because we can not connect to regular SMTP to the
+        //   // original email as it will 'timeout' as well. Once we get the response from Verify+,
+        //   // We can save the response and stop the process as we already received the status.
+        //   const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+        //   emailStatus.email_status = verifyPlusResponse.status;
+        //   emailStatus.email_sub_status = verifyPlusResponse.reason;
+        //   await this.saveProcessedEmail(emailStatus, user, bulkFileId);
+        //   return emailStatus;
+        // }
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
@@ -804,8 +816,18 @@ export class DomainService {
         email,
         mxRecordHost,
       );
-      emailStatus.email_status = smtpResponse.status;
-      emailStatus.email_sub_status = smtpResponse.reason;
+      // If - It's a free email and smtp response is a 'timeout' then we must trigger Verify+
+      // else - Business email Verify+ check is done in catch-all block. So we do not do it again here.
+      if (smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
+        // If timeout then we must trigger Verify+ (like zerobounce)
+        const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+        emailStatus.email_status = verifyPlusResponse.status;
+        emailStatus.email_sub_status = verifyPlusResponse.reason;
+      } else {
+        emailStatus.email_status = smtpResponse.status;
+        emailStatus.email_sub_status = smtpResponse.reason;
+      }
+
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (
@@ -833,6 +855,21 @@ export class DomainService {
 
       return emailStatus;
     }
+  }
+
+  private async __sendVerifyPlusEmail(email: string) {
+    const emailData = {
+      fromEmail: 'Will Smith <fwork03@gmail.com>',
+      to: email,
+      subject: '',
+      template: 'email_verify+',
+      context: {},
+      attachments: [],
+    };
+    const emailResponse = await this.mailerService.sendEmail(emailData);
+    console.log('Verify+');
+    console.log({ emailResponse });
+    return this.__parseEmailResponseData(emailResponse.response, email);
   }
 
   async saveProcessedErrorEmail(

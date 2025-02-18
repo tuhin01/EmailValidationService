@@ -9,12 +9,14 @@ import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { DomainService } from '@/domains/services/domain.service';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
+import { MailerModule } from '@/mailer/mailer.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Domain, ErrorDomain, ProcessedEmail]),
     DisposableDomainsModule,
     EmailRolesModule,
+    MailerModule,
     WinstonLoggerModule,
   ],
   controllers: [DomainsController],

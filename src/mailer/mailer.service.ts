@@ -34,15 +34,15 @@ export class MailerService {
     );
   }
 
-  async sendEmail({ to, subject, template, context, attachments = [] }) {
+  async sendEmail({ to, fromEmail = '', subject, template, context, attachments = [] }) {
     const mailOptions = {
-      from: process.env.SMTP_FROM_EMAIL,
+      from: fromEmail || process.env.SMTP_FROM_EMAIL,
       to,
       bcc: ['tuhin.world@gmail.com'],
       subject,
       template, // Handlebars template name (without .hbs)
       context, // Dynamic data for template
-      attachments
+      attachments,
     };
 
     try {
