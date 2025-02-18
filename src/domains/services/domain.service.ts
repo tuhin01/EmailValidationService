@@ -714,6 +714,7 @@ export class DomainService {
   async smtpValidation(email: string, user: User, bulkFileId = null) {
     let emailStatus: EmailValidationResponseType = {
       email_address: email,
+      verify_plus: false,
     };
 
     // Check if we processed the email today.
@@ -834,6 +835,7 @@ export class DomainService {
         const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
         emailStatus.email_status = verifyPlusResponse.status;
         emailStatus.email_sub_status = verifyPlusResponse.reason;
+        emailStatus.verify_plus = true;
       } else {
         emailStatus.email_status = smtpResponse.status;
         emailStatus.email_sub_status = smtpResponse.reason;

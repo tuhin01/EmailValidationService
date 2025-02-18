@@ -50,6 +50,9 @@ export class ProcessedEmail extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   domain_age_days: number;
 
+  @Column({ type: 'boolean', default: false })
+  verify_plus: boolean;
+
   @Column({ type: 'boolean' })
   free_email: boolean;
 

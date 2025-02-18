@@ -7,6 +7,7 @@ export type EmailValidationResponseType = {
   account?: string;
   domain?: string;
   free_email?: boolean;
+  verify_plus?: boolean;
   domain_age_days?: number;
   retry?: RetryStatus;
 };
