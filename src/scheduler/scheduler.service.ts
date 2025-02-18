@@ -336,10 +336,10 @@ export class SchedulerService {
           );
           // Add emails to GraList check
           if (
-            validationResponse.email_sub_status === EmailReason.IP_BLOCKED ||
+            validationResponse.email_sub_status === EmailReason.GREY_LISTED ||
             validationResponse.email_sub_status === EmailReason.MAILBOX_NOT_FOUND
           ) {
-            await this.queueService.addGraListEmailToQueue(validationResponse);
+            await this.queueService.addGreyListEmailToQueue(validationResponse);
           }
           return {
             ...record,
@@ -347,10 +347,8 @@ export class SchedulerService {
           };
         }),
       );
-      console.log('CC');
       // Wait for all validations to complete
       const results = await Promise.allSettled(validationPromises);
-      console.log('DD');
 
       return results
         .filter(result => result.status === 'fulfilled')

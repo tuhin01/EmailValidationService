@@ -6,5 +6,5 @@ export const ERROR_DOMAIN_CHECK_DAY_GAP = 0;
 export const PROCESSED_EMAIL_CHECK_DAY_GAP = 100;
 export const GRAY_LIST_MINUTE_GAP = 15;
 export const PROCESS_EMAIL_SEND_QUEUE = 'sendEmail';
-export const GRAY_LIST_QUEUE = 'grayListQueue';
-export const PROCESS_GRAY_LIST_QUEUE = 'processGrayListQueue';
+export const GREY_LIST_QUEUE = 'greyListQueue';
+export const PROCESS_GREY_LIST_QUEUE = 'processGreyListQueue';

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
-import { GRAY_LIST_QUEUE, PROCESS_EMAIL_SEND_QUEUE, PROCESS_GRAY_LIST_QUEUE } from '@/common/utility/constant';
+import { GREY_LIST_QUEUE, PROCESS_EMAIL_SEND_QUEUE, PROCESS_GREY_LIST_QUEUE } from '@/common/utility/constant';
 import { MailerService } from '@/mailer/mailer.service';
 import { EmailStatusType, EmailValidationResponseType } from '@/common/utility/email-status-type';
 import Bottleneck from 'bottleneck';
@@ -17,7 +17,7 @@ export class QueueService {
     private readonly mailerService: MailerService,
     private readonly domainService: DomainService,
     private readonly winstonLoggerService: WinstonLoggerService,
-    @InjectQueue(GRAY_LIST_QUEUE) private readonly queue: Queue,
+    @InjectQueue(GREY_LIST_QUEUE) private readonly queue: Queue,
   ) {
   }
 
@@ -28,13 +28,13 @@ export class QueueService {
   });
 
 
-  async addGraListEmailToQueue(emailSmtpResponse: EmailValidationResponseType) {
+  async addGreyListEmailToQueue(emailSmtpResponse: EmailValidationResponseType) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
       delay: 15 * 60 * 1000, // delay for 15 minutes
       removeOnComplete: true, // Automatically delete job after processing
     };
-    await this.queue.add(PROCESS_GRAY_LIST_QUEUE, emailSmtpResponse, jobOptions);
+    await this.queue.add(PROCESS_GREY_LIST_QUEUE, emailSmtpResponse, jobOptions);
   }
 
   async addEmailToQueue(data: any) {

@@ -38,11 +38,13 @@ import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
 import { MailerService } from '@/mailer/mailer.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class DomainService {
   constructor(
     private dataSource: DataSource,
+    private configService: ConfigService,
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
     private mailerService: MailerService,
@@ -139,16 +141,22 @@ export class DomainService {
         new Date(),
         processedEmail.created_at,
       );
-      if (dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP) {
-        if (
+
+      if (
+        (
+          dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP
+        )
+        &&
+        (
           processedEmail.email_status === EmailStatus.VALID ||
           processedEmail.email_status === EmailStatus.CATCH_ALL ||
           processedEmail.email_status === EmailStatus.SPAMTRAP ||
           processedEmail.email_status === EmailStatus.DO_NOT_MAIL
-        ) {
-          return processedEmail;
-        }
+        )
+      ) {
+        return processedEmail;
       }
+
     }
     return null;
   }
@@ -400,7 +408,7 @@ export class DomainService {
     return new Promise((resolve, reject) => {
       let socket = net.createConnection(25, mxHost);
       socket.setEncoding('ascii');
-      socket.setTimeout(10000);
+      socket.setTimeout(5000);
       const fromEmail = 'tuhin.world@gmail.com';
       let dataStr = '';
       const commands = [
@@ -555,11 +563,11 @@ export class DomainService {
         this.winstonLoggerService.error(`verifySmtp() timeout - ${email}`, dataStr);
 
         this.closeSmtpConnection(socket);
-        const error: EmailStatusType = {
+        const emailStatus: EmailStatusType = {
           status: EmailStatus.UNKNOWN,
           reason: EmailReason.SMTP_TIMEOUT,
         };
-        reject(error);
+        resolve(emailStatus);
         return;
       });
     });
@@ -704,7 +712,7 @@ export class DomainService {
   }
 
   async smtpValidation(email: string, user: User, bulkFileId = null) {
-    const emailStatus: EmailValidationResponseType = {
+    let emailStatus: EmailValidationResponseType = {
       email_address: email,
     };
 
@@ -713,11 +721,14 @@ export class DomainService {
     const processedEmail: ProcessedEmail = await this.getProcessedEmail(email);
     if (processedEmail) {
       console.log(processedEmail.email_address);
+      // Delete these property so these are not included in the final response.
       delete processedEmail.id;
       delete processedEmail.user_id;
       delete processedEmail.bulk_file_id;
       delete processedEmail.created_at;
-      return { ...emailStatus, ...processedEmail };
+      delete processedEmail.retry;
+      emailStatus = { ...emailStatus, ...processedEmail };
+      return emailStatus;
     } else {
       console.log('Processed email not found for ' + email);
     }
@@ -815,6 +826,7 @@ export class DomainService {
         email,
         mxRecordHost,
       );
+      console.log({ smtpResponse });
       // If - It's a free email and smtp response is a 'timeout' then we must trigger Verify+
       // else - Business email Verify+ check is done in catch-all block. So we do not do it again here.
       if (smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
@@ -858,7 +870,7 @@ export class DomainService {
 
   private async __sendVerifyPlusEmail(email: string) {
     const emailData = {
-      fromEmail: 'Will Smith <fwork03@gmail.com>',
+      fromEmail: this.configService.get<string>('VERIFY_PLUS_FROM_EMAIL'),
       to: email,
       subject: '',
       template: 'email_verify+',

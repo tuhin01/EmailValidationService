@@ -43,6 +43,7 @@ export enum EmailReason {
   NO_MX_FOUND = 'mx_record_not_found',
   ROLE_BASED = 'role_based',
   IP_BLOCKED = 'ip_blocked',
+  GREY_LISTED = 'greylisted',
   ALIAS = 'alias_or_forwarded_email',
   DISPOSABLE_DOMAIN = 'disposable_domain_temporary_email',
   POSSIBLE_TYPO = 'possible_typo',
@@ -110,25 +111,25 @@ export const SMTPResponseCode = {
   FOUR_51: {
     smtp_code: 451,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-    reason: EmailReason.IP_BLOCKED,
+    reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_52: {
     smtp_code: 452,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-    reason: EmailReason.IP_BLOCKED,
+    reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_50: {
     smtp_code: 450,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-    reason: EmailReason.IP_BLOCKED,
+    reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_21: {
     smtp_code: 421,
     status: EmailStatus.TEMPORARILY_UNAVAILABLE,
-    reason: EmailReason.IP_BLOCKED,
+    reason: EmailReason.GREY_LISTED,
     retry: true,
   },
 };
