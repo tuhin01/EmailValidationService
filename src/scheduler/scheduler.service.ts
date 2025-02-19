@@ -115,11 +115,10 @@ export class SchedulerService {
     }
 
     const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
-    console.log(processedEmails.length);
     if (processedEmails.length) {
-      console.log('GrayList is in progress...');
       return;
     }
+    console.log('GrayList is in progress...');
     // Generate all csv and update DB with updated counts.
     await this.generateBulkFileResultCsv(firstGrayListFile.id);
 
@@ -336,8 +335,7 @@ export class SchedulerService {
           );
           // Add emails to GraList check
           if (
-            validationResponse.email_sub_status === EmailReason.GREY_LISTED ||
-            validationResponse.email_sub_status === EmailReason.MAILBOX_NOT_FOUND
+            validationResponse.email_sub_status === EmailReason.GREY_LISTED
           ) {
             await this.queueService.addGreyListEmailToQueue(validationResponse);
           }

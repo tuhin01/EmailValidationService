@@ -166,15 +166,15 @@ export class DomainService {
     return ProcessedEmail.find({
       where: [
         {
-          email_sub_status: EmailReason.IP_BLOCKED,
+          email_sub_status: EmailReason.GREY_LISTED,
           bulk_file_id: bulkFileId,
           retry: RetryStatus.PENDING,
         },
-        {
-          email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
-          bulk_file_id: bulkFileId,
-          retry: RetryStatus.PENDING,
-        },
+        // {
+        //   email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
+        //   bulk_file_id: bulkFileId,
+        //   retry: RetryStatus.PENDING,
+        // },
       ],
       order: {
         id: 'ASC',

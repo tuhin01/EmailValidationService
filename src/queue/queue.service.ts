@@ -3,9 +3,13 @@ import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import { GREY_LIST_QUEUE, PROCESS_EMAIL_SEND_QUEUE, PROCESS_GREY_LIST_QUEUE } from '@/common/utility/constant';
 import { MailerService } from '@/mailer/mailer.service';
-import { EmailStatusType, EmailValidationResponseType } from '@/common/utility/email-status-type';
+import {
+  EmailReason,
+  EmailStatus,
+  EmailStatusType,
+  EmailValidationResponseType,
+} from '@/common/utility/email-status-type';
 import Bottleneck from 'bottleneck';
-import { User } from '@/users/entities/user.entity';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { DomainService } from '@/domains/services/domain.service';
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
@@ -71,8 +75,14 @@ export class QueueService {
         emailStatus = { ...e };
         this.winstonLoggerService.error('Gray List Error', e);
       }
-      emailResponse.email_status = emailStatus.status;
-      emailResponse.email_sub_status = emailStatus.reason;
+      // If email status is still GREY_LISTED then mark it invalid.
+      if(emailStatus.reason === EmailReason.GREY_LISTED) {
+        emailStatus.status = EmailStatus.INVALID;
+        emailStatus.reason = EmailReason.MAILBOX_NOT_FOUND
+      } else {
+        emailResponse.email_status = emailStatus.status;
+        emailResponse.email_sub_status = emailStatus.reason;
+      }
       emailResponse.retry = RetryStatus.COMPLETE;
       await this.domainService.updateProcessedEmailByEmail(emailResponse.email_address, emailResponse);
 
