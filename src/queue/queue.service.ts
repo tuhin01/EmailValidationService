@@ -7,7 +7,7 @@ import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
-  EmailValidationResponseType,
+  EmailValidationResponseType, SendMailOptions,
 } from '@/common/utility/email-status-type';
 import Bottleneck from 'bottleneck';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
@@ -50,7 +50,7 @@ export class QueueService {
     await this.queue.add(PROCESS_EMAIL_SEND_QUEUE, data, jobOptions);
   }
 
-  async processEmailQueue(emailData) {
+  async processEmailQueue(emailData: SendMailOptions) {
     return this.mailerService.sendEmail(emailData);
   }
 

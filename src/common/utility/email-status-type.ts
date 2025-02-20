@@ -1,4 +1,5 @@
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
+import { Attachment } from 'nodemailer/lib/mailer';
 
 export type EmailValidationResponseType = {
   email_address: string;
@@ -11,6 +12,17 @@ export type EmailValidationResponseType = {
   domain_age_days?: number;
   retry?: RetryStatus;
 };
+
+export type SendMailOptions = {
+  to: string,
+  fromEmail?: string,
+  bcc?: [],
+  subject: string,
+  template: string,
+  context?: object,
+  attachments?: Attachment[],
+  headers?: {},
+}
 
 /** Possible email verification statuses */
 export enum EmailStatus {
@@ -143,5 +155,5 @@ export type EmailStatusType = {
 };
 
 export const ipBlockedStringsArray = [
-  'permanently deferred', 'Spamhaus', 'cannot find your reverse hostname', 'spamhaus', 'Command rejected'
+  'permanently deferred', 'Spamhaus', 'cannot find your reverse hostname', 'spamhaus', 'Command rejected',
 ];

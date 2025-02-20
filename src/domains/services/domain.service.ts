@@ -22,7 +22,7 @@ import {
   EmailStatus,
   EmailStatusType,
   EmailValidationResponseType,
-  ipBlockedStringsArray,
+  ipBlockedStringsArray, SendMailOptions,
   SMTPResponseCode,
 } from '@/common/utility/email-status-type';
 import freeEmailProviderList from '@/common/utility/free-email-provider-list';
@@ -827,7 +827,6 @@ export class DomainService {
         email,
         mxRecordHost,
       );
-      console.log({ smtpResponse });
       // If - User enabled verify+ and it's a free email and smtp response
       // is a 'timeout' then we must trigger Verify+
       // If timeout then we must trigger Verify+ (like zerobounce)
@@ -871,9 +870,13 @@ export class DomainService {
   }
 
   private async __sendVerifyPlusEmail(email: string) {
-    const emailData = {
+    const emailData: SendMailOptions = {
       fromEmail: this.configService.get<string>('VERIFY_PLUS_FROM_EMAIL'),
       to: email,
+      headers: {
+        // This header allow us tracking email delivery status.
+        'X-SES-CONFIGURATION-SET': 'Default',
+      },
       subject: '',
       template: 'email_verify+',
       context: {},

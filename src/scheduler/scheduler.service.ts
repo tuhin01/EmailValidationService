@@ -7,7 +7,12 @@ import { parse } from 'csv-parse';
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
-import { EmailReason, EmailStatus, EmailValidationResponseType } from '@/common/utility/email-status-type';
+import {
+  EmailReason,
+  EmailStatus,
+  EmailValidationResponseType,
+  SendMailOptions,
+} from '@/common/utility/email-status-type';
 import { DomainService } from '@/domains/services/domain.service';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import Bottleneck from 'bottleneck';
@@ -182,7 +187,7 @@ export class SchedulerService {
       downloadLink: 'https://leadwrap.com/downlaod/',
       unsubscribeLink: 'https://leadwrap.com/unsubscribe/',
     };
-    const emailData = {
+    const emailData: SendMailOptions = {
       to,
       subject: 'LearWrap Email Verification is Complete',
       template: 'email_verification_complete',
