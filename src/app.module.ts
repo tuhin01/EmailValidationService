@@ -21,6 +21,7 @@ import { TimeService } from './time/time.service';
 import { TimeModule } from './time/time.module';
 import { QueueModule } from './queue/queue.module';
 import { WebhookModule } from './webhook/webhook.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { WebhookModule } from './webhook/webhook.module';
       autoLoadEntities: true,
       synchronize: true,
     }),
+    EventEmitterModule.forRoot(),
     CommonModule,
     SchedulerModule,
     BulkFilesModule,

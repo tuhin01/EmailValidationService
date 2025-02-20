@@ -573,7 +573,7 @@ export class DomainService {
     });
   }
 
-  private __parseEmailResponseData(
+  public parseEmailResponseData(
     data: string,
     email: string,
   ): EmailStatusType {
@@ -885,7 +885,7 @@ export class DomainService {
     const emailResponse = await this.mailerService.sendEmail(emailData);
     console.log('Verify+');
     console.log({ emailResponse });
-    return this.__parseEmailResponseData(emailResponse.response, email);
+    return this.parseEmailResponseData(emailResponse.response, email);
   }
 
   async saveProcessedErrorEmail(
