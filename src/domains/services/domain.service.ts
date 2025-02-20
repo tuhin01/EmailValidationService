@@ -814,7 +814,7 @@ export class DomainService {
         //   // Because we can not connect to regular SMTP to the
         //   // original email as it will 'timeout' as well. Once we get the response from Verify+,
         //   // We can save the response and stop the process as we already received the status.
-        //   const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+        //   const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(catchAllEmail);
         //   emailStatus.email_status = verifyPlusResponse.status;
         //   emailStatus.email_sub_status = verifyPlusResponse.reason;
         //   await this.saveProcessedEmail(emailStatus, user, bulkFileId);
