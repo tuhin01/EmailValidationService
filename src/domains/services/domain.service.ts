@@ -878,7 +878,7 @@ export class DomainService {
         'X-SES-CONFIGURATION-SET': 'Default',
       },
       subject: '',
-      template: 'email_verify+',
+      template: '',
       context: {},
       attachments: [],
     };

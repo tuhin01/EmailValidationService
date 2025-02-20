@@ -38,7 +38,7 @@ export class MailerService {
   }
 
   async sendEmail(mailData: SendMailOptions) {
-    const { fromEmail, to, bcc, subject, template, attachments, headers, context } = mailData;
+    const { fromEmail = '', to, bcc = [], subject, template = '', attachments = [], headers = {}, context = {} } = mailData;
     const mailOptions = {
       from: fromEmail || this.configService.get<string>('SMTP_FROM_EMAIL'),
       to,
