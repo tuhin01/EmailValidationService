@@ -127,7 +127,7 @@ export class SmtpConnectionService {
         await this.sendCommand(`EHLO ${this.host}`);
         await this.sendCommand(`MAIL FROM:<${mailFrom}>`);
         const responseCatchAllRcptTo = await this.sendCommand(`RCPT TO:<${catchAllEmail}>`, catchAllEmail);
-        const catchAllEmailStatus: EmailStatusType = this.__parseSmtpResponseData(responseCatchAllRcptTo, catchAllEmail);
+        const catchAllEmailStatus: EmailStatusType = this.parseSmtpResponseData(responseCatchAllRcptTo, catchAllEmail);
         if (catchAllEmailStatus.status === EmailStatus.VALID) {
           const error: EmailStatusType = {
             status: EmailStatus.CATCH_ALL,
@@ -140,7 +140,7 @@ export class SmtpConnectionService {
         const responseRcptTo = await this.sendCommand(`RCPT TO:<${email}>`, email);
         await this.sendCommand(`QUIT`);
 
-        const emailStatus: EmailStatusType = this.__parseSmtpResponseData(responseRcptTo, email);
+        const emailStatus: EmailStatusType = this.parseSmtpResponseData(responseRcptTo, email);
         resolve(emailStatus);
       } catch (e) {
         await this.sendCommand(`QUIT`);
@@ -149,7 +149,7 @@ export class SmtpConnectionService {
     });
   }
 
-  private __parseSmtpResponseData(
+  public parseSmtpResponseData(
     data: string,
     email: string,
   ): EmailStatusType {

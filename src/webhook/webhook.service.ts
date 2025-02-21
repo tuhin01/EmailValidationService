@@ -8,11 +8,13 @@ import {
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
+import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 
 @Injectable()
 export class WebhookService {
   constructor(
     private domainService: DomainService,
+    private smtpService: SmtpConnectionService,
   ) {
   }
 
@@ -24,7 +26,7 @@ export class WebhookService {
         break;
       case 'Delivery':
         email = notification.delivery.recipients[0];
-        const verifyPlusResponse: EmailStatusType = this.domainService.parseEmailResponseData(notification.delivery.smtpResponse, email);
+        const verifyPlusResponse: EmailStatusType = this.smtpService.parseSmtpResponseData(notification.delivery.smtpResponse, email);
         emailStatus = {
           email_address: email,
           verify_plus: true,

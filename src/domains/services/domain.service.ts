@@ -1,11 +1,7 @@
-import * as net from 'node:net';
-
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
 import * as dns from 'dns';
-import * as parseWhois from 'parse-whois';
 import { DataSource } from 'typeorm';
-import * as whois from 'whois';
 
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
 import {
@@ -22,8 +18,7 @@ import {
   EmailStatus,
   EmailStatusType,
   EmailValidationResponseType,
-  ipBlockedStringsArray, SendMailOptions,
-  SMTPResponseCode,
+  SendMailOptions,
 } from '@/common/utility/email-status-type';
 import freeEmailProviderList from '@/common/utility/free-email-provider-list';
 import { DisposableDomainsService } from '@/disposable-domains/disposable-domains.service';
@@ -35,7 +30,6 @@ import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { ErrorDomain } from '@/domains/entities/error_domain.entity';
 import { ProcessedEmail, RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
-import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { User } from '@/users/entities/user.entity';
 import { MailerService } from '@/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
@@ -144,6 +138,8 @@ export class DomainService {
         processedEmail.created_at,
       );
 
+      // If processed email has one of the below email_status, then we will revalidate the
+      // email and not use database response.
       if (
         (
           dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP
@@ -172,11 +168,6 @@ export class DomainService {
           bulk_file_id: bulkFileId,
           retry: RetryStatus.PENDING,
         },
-        // {
-        //   email_sub_status: EmailReason.MAILBOX_NOT_FOUND,
-        //   bulk_file_id: bulkFileId,
-        //   retry: RetryStatus.PENDING,
-        // },
       ],
       order: {
         id: 'ASC',
@@ -276,59 +267,6 @@ export class DomainService {
     });
   }
 
-  // Perform WHOIS lookup for domain age
-  async getDomainAge(domain: string, dbDomain: Domain) {
-    return new Promise((resolve, reject) => {
-      if (dbDomain) {
-        resolve({ domain_age_days: dbDomain.domain_age_days });
-        return;
-      }
-
-      whois.lookup(domain, (err, data) => {
-        if (err) {
-          const error: EmailStatusType = {
-            status: EmailStatus.INVALID_DOMAIN,
-            reason: EmailReason.DOMAIN_NOT_FOUND,
-          };
-          reject(error);
-          return;
-        }
-
-        try {
-          const parsedData = parseWhois.parseWhoIsData(data);
-          const domainAge = parsedData.find(
-            (p) => p.attribute === 'Creation Date',
-          );
-          const creationDate = domainAge?.value;
-
-          if (!creationDate) {
-            const error: EmailStatusType = {
-              status: EmailStatus.INVALID_DOMAIN,
-              reason: EmailReason.DOMAIN_WHOIS_DATA_NOT_FOUND,
-            };
-            reject(error);
-            return;
-          }
-
-          const registrationDate = new Date(creationDate);
-          const ageInDays =
-            (Date.now() - registrationDate.getTime()) / (1000 * 60 * 60 * 24);
-
-          resolve({
-            domain_age_days: Math.floor(ageInDays),
-          });
-        } catch (err) {
-          const error: EmailStatusType = {
-            status: EmailStatus.INVALID_DOMAIN,
-            reason: EmailReason.DOMAIN_WHOIS_PARSE_ERROR,
-          };
-          reject(error);
-          return;
-        }
-      });
-    });
-  }
-
   async checkDomainMxRecords(
     domain: string,
     dbDomain: Domain,
@@ -383,258 +321,6 @@ export class DomainService {
     });
   }
 
-  async catchAllCheck(email, mxHost) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const catchAllResponse: EmailStatusType = await this.verifySmtp(
-          email,
-          mxHost,
-        );
-        if (catchAllResponse.status === EmailStatus.VALID) {
-          const error: EmailStatusType = {
-            status: EmailStatus.CATCH_ALL,
-            reason: EmailReason.EMPTY,
-          };
-          reject(error);
-
-          return;
-        }
-        resolve(catchAllResponse);
-      } catch (e) {
-        resolve(e);
-      }
-    });
-  }
-
-  async verifySmtp(email: string, mxHost: string): Promise<EmailStatusType> {
-    return new Promise((resolve, reject) => {
-      let socket = net.createConnection(25, mxHost);
-      socket.setEncoding('ascii');
-      socket.setTimeout(5000);
-      const fromEmail = 'tuhin.world@gmail.com';
-      let dataStr = '';
-      const commands = [
-        `EHLO ${mxHost}`,
-        `MAIL FROM: <${fromEmail}>`,
-        `RCPT TO: <${email}>`,
-        `QUIT`,
-      ];
-
-      console.log(email);
-
-      let stage = 0;
-
-      socket.on('connect', () => {
-        socket.write(`${commands[stage++]}\r\n`);
-      });
-
-      // https://en.wikipedia.org/wiki/List_of_SMTP_server_return_codes
-      // Parse the SMTP response based on response code listed above
-      socket.on('data', (data) => {
-        dataStr = data.toString();
-        console.log(data);
-        console.log({ stage });
-
-        if (data.includes(SMTPResponseCode.TWO_50.smtp_code) && stage < commands.length) {
-          // Check if the socket is writable before writing
-          if (socket.writable) {
-            socket.write(`${commands[stage++]}\r\n`);
-          }
-        } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const smailStatus: EmailStatusType = SMTPResponseCode.TWO_51;
-          resolve(smailStatus);
-          return;
-        } else if (
-          data.includes(SMTPResponseCode.FIVE_50.smtp_code) ||
-          data.includes(SMTPResponseCode.FIVE_56.smtp_code) ||
-          data.includes(SMTPResponseCode.FIVE_05.smtp_code) ||
-          data.includes(SMTPResponseCode.FIVE_51.smtp_code) ||
-          data.includes(SMTPResponseCode.FIVE_00.smtp_code)
-        ) {
-          this.closeSmtpConnection(socket);
-          let error: EmailStatusType = { reason: undefined, status: undefined };
-          this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, dataStr);
-
-          // Check if "data" has any of the strings from 'ipBlockedStringsArray'
-          for (const str of ipBlockedStringsArray) {
-            if (data.includes(str)) {
-              error.status = EmailStatus.SERVICE_UNAVAILABLE;
-              error.reason = EmailReason.IP_BLOCKED;
-              reject(error);
-              return;
-            }
-          }
-
-          error = SMTPResponseCode.FIVE_50;
-          reject(error);
-          return;
-        } else if (
-          // Detect Gray listing (Temporary Failures)
-          data.includes(SMTPResponseCode.FOUR_21.smtp_code) ||
-          data.includes(SMTPResponseCode.FOUR_50.smtp_code) ||
-          data.includes(SMTPResponseCode.FOUR_51.smtp_code) ||
-          data.includes(SMTPResponseCode.FOUR_52.smtp_code)
-        ) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FOUR_21;
-          reject(error);
-          return;
-        } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const error: EmailStatusType = SMTPResponseCode.FIVE_53;
-          reject(error);
-          return;
-        } else if (data.includes(SMTPResponseCode.FIVE_54.smtp_code)) {
-          this.closeSmtpConnection(socket);
-          const emailStatus: EmailStatusType = SMTPResponseCode.FIVE_54;
-          reject(emailStatus);
-          return;
-        } else if (stage === commands.length) {
-          this.closeSmtpConnection(socket);
-          const smailStatus: EmailStatusType = {
-            status: EmailStatus.VALID,
-            reason: EmailReason.EMPTY,
-          };
-          resolve(smailStatus);
-          return;
-
-        } else {
-          // When no other condition is true, handle it for all other codes
-          // Response code starts with "4" - Temporary error, and we should retry later
-          // Response code starts with "5" - Permanent error and must not retry
-          if (dataStr) {
-            // Log the response
-            if (!dataStr.startsWith('2')) {
-              this.winstonLoggerService.error(`verifySmtp() else - ${email}`, dataStr);
-            }
-
-            if (dataStr.startsWith('4')) {
-              const emailStatus: EmailStatusType = SMTPResponseCode.FOUR_51;
-              reject(emailStatus);
-              return;
-            } else if (dataStr.startsWith('5')) {
-              const emailStatus: EmailStatusType = SMTPResponseCode.FIVE_50;
-              console.log(emailStatus);
-              reject(emailStatus);
-              return;
-            }
-          }
-        }
-      });
-
-      socket.once('close', () => {
-        console.log('Closing...', stage, commands.length);
-        // If the socket is closed by the SMTP server without letting us complete
-        // all commands then it probably blocked our IP. But if all commands
-        // completed and SMTP response has code above 400, the email address is invalid
-        if (dataStr && stage === commands.length) {
-          const responseCode = parseInt(dataStr.substring(0, 3));
-          if (responseCode >= 400) {
-            const error: EmailStatusType = {
-              status: EmailStatus.INVALID,
-              reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
-            };
-            reject(error);
-          }
-        } else {
-          const error: EmailStatusType = {
-            status: EmailStatus.SERVICE_UNAVAILABLE,
-            reason: EmailReason.IP_BLOCKED,
-          };
-          reject(error);
-        }
-        return;
-      });
-
-      socket.on('error', (err) => {
-        // Log the error
-        this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
-        this.closeSmtpConnection(socket);
-        // Detect if the connection is blocked
-        if (err.message.includes('ECONNREFUSED') || err.message.includes('EHOSTUNREACH')) {
-          reject({ status: EmailStatus.SERVICE_UNAVAILABLE, reason: EmailReason.IP_BLOCKED });
-        } else {
-          reject({ status: EmailStatus.UNKNOWN, reason: err.message });
-        }
-        return;
-      });
-
-      socket.on('timeout', () => {
-        // Log the error
-        this.winstonLoggerService.error(`verifySmtp() timeout - ${email}`, dataStr);
-
-        this.closeSmtpConnection(socket);
-        const emailStatus: EmailStatusType = {
-          status: EmailStatus.UNKNOWN,
-          reason: EmailReason.SMTP_TIMEOUT,
-        };
-        resolve(emailStatus);
-        return;
-      });
-    });
-  }
-
-  public parseEmailResponseData(
-    data: string,
-    email: string,
-  ): EmailStatusType {
-    if (data.includes(SMTPResponseCode.TWO_50.smtp_code.toString())) {
-      return SMTPResponseCode.TWO_50;
-    } else if (data.includes(SMTPResponseCode.TWO_51.smtp_code.toString())) {
-      return SMTPResponseCode.TWO_51;
-    } else if (
-      data.includes(SMTPResponseCode.FIVE_50.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FIVE_56.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FIVE_05.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FIVE_51.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FIVE_00.smtp_code.toString())
-    ) {
-      let error: EmailStatusType = { reason: undefined, status: undefined };
-      this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, data);
-
-      // Check if "data" has any of the strings from 'ipBlockedStringsArray'
-      for (const str of ipBlockedStringsArray) {
-        if (data.includes(str)) {
-          error.status = EmailStatus.SERVICE_UNAVAILABLE;
-          error.reason = EmailReason.IP_BLOCKED;
-          return error;
-        }
-      }
-
-      return SMTPResponseCode.FIVE_50;
-    } else if (
-      // Detect Gray listing (Temporary Failures)
-      data.includes(SMTPResponseCode.FOUR_21.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FOUR_50.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FOUR_51.smtp_code.toString()) ||
-      data.includes(SMTPResponseCode.FOUR_52.smtp_code.toString())
-    ) {
-      return SMTPResponseCode.FOUR_21;
-    } else if (data.includes(SMTPResponseCode.FIVE_53.smtp_code.toString())) {
-      return SMTPResponseCode.FIVE_53;
-    } else if (data.includes(SMTPResponseCode.FIVE_54.smtp_code.toString())) {
-      return SMTPResponseCode.FIVE_54;
-    } else {
-      console.log(data);
-      // When no other condition is true, handle it for all other codes
-      // Response code starts with "4" - Temporary error, and we should retry later
-      // Response code starts with "5" - Permanent error and must not retry
-      if (data) {
-        // Log the response
-        if (!data.startsWith('2')) {
-          this.winstonLoggerService.error(`verifySmtp() else - ${email}`, data);
-        }
-
-        if (data.startsWith('4')) {
-          return SMTPResponseCode.FOUR_51;
-        } else if (data.startsWith('5')) {
-          return SMTPResponseCode.FIVE_50;
-        }
-      }
-    }
-
-  }
 
   checkDomainSpamDatabaseList(domain: string) {
     return new Promise((resolve, reject) => {
@@ -704,13 +390,6 @@ export class DomainService {
       }
       resolve(true);
     });
-  }
-
-  private closeSmtpConnection(socket) {
-    if (socket.readyState === 'open') {
-      socket.write('QUIT\r\n');
-      socket.end();
-    }
   }
 
   async smtpValidation(email: string, user: User, bulkFileId = null) {
@@ -801,28 +480,6 @@ export class DomainService {
         await this.create(createDomainDto);
       }
 
-      if (!isFreeEmailDomain) {
-        // Step 8 : Check if the mail server smtpResponse 'ok' for an abnormal email that does not exist.
-        // This means the domain accepts any email address as valid
-        // We mark these as 'catch_all' as the email is valid but
-        // high chance of not getting any reply back.
-        // const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
-        // const catchAllResponse: any = await this.catchAllCheck(catchAllEmail, mxRecordHost);
-        // console.log({ catchAllResponse });
-        // If catchall check response timeout then
-        // if (catchAllResponse.reason === EmailReason.SMTP_TIMEOUT) {
-        //   // If timeout then we must trigger Verify+ (like zerobounce)
-        //   // If catch-all email response is a 'timeout' then we can immediately trigger Verify+
-        //   // Because we can not connect to regular SMTP to the
-        //   // original email as it will 'timeout' as well. Once we get the response from Verify+,
-        //   // We can save the response and stop the process as we already received the status.
-        //   const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(catchAllEmail);
-        //   emailStatus.email_status = verifyPlusResponse.status;
-        //   emailStatus.email_sub_status = verifyPlusResponse.reason;
-        //   await this.saveProcessedEmail(emailStatus, user, bulkFileId);
-        //   return emailStatus;
-        // }
-      }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
       // const smtpResponse: EmailStatusType = await this.verifySmtp(
@@ -889,7 +546,7 @@ export class DomainService {
     const emailResponse = await this.mailerService.sendEmail(emailData);
     console.log('Verify+');
     console.log({ emailResponse });
-    return this.parseEmailResponseData(emailResponse.response, email);
+    return this.smtpService.parseSmtpResponseData(emailResponse.response, email);
   }
 
   async saveProcessedErrorEmail(

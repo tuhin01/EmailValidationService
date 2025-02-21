@@ -14,12 +14,14 @@ import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { DomainService } from '@/domains/services/domain.service';
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
+import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 
 @Injectable()
 export class QueueService {
   constructor(
     private readonly mailerService: MailerService,
     private readonly domainService: DomainService,
+    private readonly smtpService: SmtpConnectionService,
     private readonly winstonLoggerService: WinstonLoggerService,
     @InjectQueue(GREY_LIST_QUEUE) private readonly queue: Queue,
   ) {
@@ -69,16 +71,16 @@ export class QueueService {
         const allMxRecordHost: MXRecord[] = JSON.parse(domain.mx_record_hosts);
         const index = Math.floor(Math.random() * allMxRecordHost.length);
         const mxRecordHost = allMxRecordHost[index].exchange;
-
-        emailStatus = await this.domainService.verifySmtp(emailResponse.email_address, mxRecordHost);
+        await this.smtpService.connect(mxRecordHost);
+        emailStatus = await this.smtpService.verifyEmail(emailResponse.email_address);
       } catch (e) {
         emailStatus = { ...e };
         this.winstonLoggerService.error('Gray List Error', e);
       }
       // If email status is still GREY_LISTED then mark it invalid.
-      if(emailStatus.reason === EmailReason.GREY_LISTED) {
+      if (emailStatus.reason === EmailReason.GREY_LISTED) {
         emailStatus.status = EmailStatus.INVALID;
-        emailStatus.reason = EmailReason.MAILBOX_NOT_FOUND
+        emailStatus.reason = EmailReason.MAILBOX_NOT_FOUND;
       } else {
         emailResponse.email_status = emailStatus.status;
         emailResponse.email_sub_status = emailStatus.reason;
