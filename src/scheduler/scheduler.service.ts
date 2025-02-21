@@ -142,8 +142,8 @@ export class SchedulerService {
 
   public async generateBulkFileResultCsv(fileId: number) {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
-    const processedEmails: ProcessedEmail[] = await this.domainService.findProcessedEmailsByFileId(bulkFile.id);
-    const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path, processedEmails);
+    // const processedEmails: ProcessedEmail[] = await this.domainService.findProcessedEmailsByFileId(bulkFile.id);
+    const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path);
     console.log({ results });
     const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
     const {
@@ -333,13 +333,13 @@ export class SchedulerService {
 
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-          console.log(`Validation started: ${record.Email}`);
+          // console.log(`Validation started: ${record.Email}`);
           const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
             record.Email,
             user,
             bulkFile.id,
           );
-          console.log(`Validation done: ${validationResponse.email_address}`);
+          // console.log(`Validation done: ${validationResponse.email_address}`);
           // Add emails to GreyList check
           if (
             validationResponse.email_sub_status === EmailReason.GREY_LISTED
@@ -350,8 +350,8 @@ export class SchedulerService {
             ...record,
             ...validationResponse,
           };
-        console.log(`Complete ${res.email_address}`);
-        return res;
+          console.log(`Complete ${res.email_address}`);
+          return res;
         }),
       );
       console.log('AA');
@@ -371,7 +371,7 @@ export class SchedulerService {
     }
   }
 
-  private async __readSCsvAndMergeValidationResults(csvPath: string, emailValidationData: ProcessedEmail[]) {
+  private async __readSCsvAndMergeValidationResults(csvPath: string) {
     try {
       // Read the CSV file
       const data = await fs.promises.readFile(csvPath, 'utf8');
@@ -396,8 +396,14 @@ export class SchedulerService {
       });
 
       for (let record of records) {
-        const validationResponse: EmailValidationResponseType = await this.domainService.getProcessedEmail(record.Email);
-        record = Object.assign(record, validationResponse); // Merges source into target (modifies target)
+        const processedEmail: ProcessedEmail = await this.domainService.getProcessedEmail(record.Email);
+        // Delete these property so these are not included in the final response.
+        delete processedEmail.id;
+        delete processedEmail.user_id;
+        delete processedEmail.bulk_file_id;
+        delete processedEmail.created_at;
+        delete processedEmail.retry;
+        record = Object.assign(record, processedEmail); // Merges source into target (modifies target)
       }
 
       return records;

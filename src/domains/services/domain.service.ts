@@ -413,7 +413,6 @@ export class DomainService {
     // If we did then just return the previous result
     const processedEmail: ProcessedEmail = await this.getInvalidProcessedEmail(email);
     if (processedEmail) {
-      console.log(processedEmail.email_address);
       // Delete these property so these are not included in the final response.
       delete processedEmail.id;
       delete processedEmail.user_id;
@@ -421,9 +420,8 @@ export class DomainService {
       delete processedEmail.created_at;
       delete processedEmail.retry;
       emailStatus = { ...emailStatus, ...processedEmail };
+      // console.log(`${email}`, { processedEmail });
       return emailStatus;
-    } else {
-      console.log('Processed email not found for ' + email);
     }
 
     try {
@@ -434,7 +432,6 @@ export class DomainService {
       const [account, domain] = email.split('@');
       emailStatus.account = account;
       emailStatus.domain = domain;
-      console.log(`Email domain ${domain} for ${email}`);
 
       // Query DB to check if domain found in error_domains
       const dbErrorDomain: ErrorDomain = await this.findErrorDomain(domain);
@@ -500,9 +497,8 @@ export class DomainService {
       // );
 
       await this.smtpService.connect(mxRecordHost);
-      console.log(`${email} smtp connected`);
       const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
-      console.log(`${email}`, smtpResponse);
+      // console.log(`${email}`, { smtpResponse });
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
       if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
@@ -538,6 +534,7 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
+      // console.log(`${email}`, { error });
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
       return emailStatus;

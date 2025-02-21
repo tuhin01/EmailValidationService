@@ -36,7 +36,7 @@ export class SmtpConnectionService {
           if (ehloResponse.includes('STARTTLS')) {
             await this.sendCommand(`STARTTLS`);
             // Step 3: Upgrade Connection to TLS
-            // console.log('🔒 Upgrading to TLS...');
+            // // console.log('🔒 Upgrading to TLS...');
             const secureSocket = tls.connect(
               {
                 socket: this.socket,
@@ -48,21 +48,23 @@ export class SmtpConnectionService {
               },
               () => {
                 if (secureSocket.authorized) {
-                  // console.log('Authorized');
+                  // // console.log('Authorized');
                 }
                 if (secureSocket.encrypted) {
-                  // console.log('✅ TLS secured. Ready to authenticate.');
+                  // // console.log('✅ TLS secured. Ready to authenticate.');
                   this.socket = secureSocket; // Replace with secure socket
 
                   this.socket.removeAllListeners('data');
                   this.socket.removeAllListeners('error');
+                  this.socket.removeAllListeners('close');
+                  this.socket.removeAllListeners('timeout');
                   resolve(true);
                 }
               },
             );
             // This socket error handles if any issue when connecting to TLS
-            secureSocket.on('error', (err) => {
-              console.error('❌ TLS Upgrade Error:', err);
+            secureSocket.once('error', (err) => {
+              // console.error('❌ TLS Upgrade Error:', err);
               const error: EmailStatusType = {
                 status: EmailStatus.INVALID,
                 reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
@@ -89,8 +91,8 @@ export class SmtpConnectionService {
       });
       // This socket error handles if any issue when connecting to email server
       // This usually means the mailbox is invalid
-      this.socket.on('error', (err) => {
-        console.error('❌ SMTP Connection Error:', err);
+      this.socket.once('error', (err) => {
+        // console.error('❌ SMTP Connection Error:', err);
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
           reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
@@ -104,13 +106,13 @@ export class SmtpConnectionService {
   private async sendCommand(command: string, email = ''): Promise<string> {
     return new Promise((resolve, reject) => {
       this.socket.write(command + '\r\n', 'utf-8', () => {
-        console.debug(`➡ Sent: ${command}`);
+        // console.debug(`➡ Sent: ${command}`);
       });
 
       let responseData = '';
       this.socket.once('data', (data) => {
         responseData = data.toString();
-        console.debug(`⬅ Received: ${responseData}`);
+        // console.debug(`⬅ Received: ${responseData}`);
         resolve(responseData);
         return;
       });
@@ -130,8 +132,8 @@ export class SmtpConnectionService {
         return;
       });
 
-      this.socket.on('error', (err) => {
-        console.log(err);
+      this.socket.once('error', (err) => {
+        // console.log(err);
         // Log the error
         // this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
         // Detect if the connection is blocked
@@ -143,7 +145,7 @@ export class SmtpConnectionService {
         return;
       });
 
-      this.socket.on('timeout', () => {
+      this.socket.once('timeout', () => {
         // Log the error
         // this.winstonLoggerService.error(`verifySmtp() timeout - ${email}`, responseData);
         resolve(EmailReason.SMTP_TIMEOUT);
@@ -174,11 +176,11 @@ export class SmtpConnectionService {
         }
         const responseRcptTo = await this.sendCommand(`RCPT TO:<${email}>`, email);
         const emailStatus: EmailStatusType = this.parseSmtpResponseData(responseRcptTo, email);
-        console.log({ emailStatus });
+        // console.log({ emailStatus });
         resolve(emailStatus);
         await this.sendCommand(`QUIT`);
       } catch (e) {
-        console.log({ e });
+        // console.log({ e });
         await this.sendCommand(`QUIT`);
         if (typeof e === 'string') {
           if (e === EmailReason.SMTP_TIMEOUT) {
