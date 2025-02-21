@@ -46,6 +46,7 @@ export class SmtpConnectionService {
               socket: this.socket,
               port: 587,
               host: this.host,
+              servername: this.host,
               rejectUnauthorized: false, // Allow self-signed certificates
             },
             () => {
