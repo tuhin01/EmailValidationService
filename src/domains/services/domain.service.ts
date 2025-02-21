@@ -533,8 +533,6 @@ export class DomainService {
       // If everything goes well, then return the emailStatus
       return emailStatus;
     } catch (error) {
-      console.log(`Email - ${email}`);
-      console.log({ error });
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
       emailStatus.free_email = freeEmailProviderList.includes(

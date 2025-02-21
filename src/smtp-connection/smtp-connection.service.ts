@@ -72,8 +72,19 @@ export class SmtpConnectionService {
             });
           }
         } catch (e) {
-          // console.log({ e });
-          reject(false);
+          // If "EHLO" command throw exception then it is caught here
+          const emailStatus: EmailStatusType = { status: undefined, reason: undefined };
+          if (e === EmailReason.IP_BLOCKED) {
+            emailStatus.status = EmailStatus.SERVICE_UNAVAILABLE;
+            emailStatus.reason = EmailReason.IP_BLOCKED;
+          } else if (e === EmailReason.DOES_NOT_ACCEPT_MAIL) {
+            emailStatus.status = EmailStatus.INVALID;
+            emailStatus.reason = EmailReason.DOES_NOT_ACCEPT_MAIL;
+          } else {
+            emailStatus.status = EmailStatus.INVALID;
+            emailStatus.reason = e;
+          }
+          reject(emailStatus);
         }
       });
       // This socket error handles if any issue when connecting to email server
@@ -93,13 +104,13 @@ export class SmtpConnectionService {
   private async sendCommand(command: string, email = ''): Promise<string> {
     return new Promise((resolve, reject) => {
       this.socket.write(command + '\r\n', 'utf-8', () => {
-        // console.debug(`➡ Sent: ${command}`);
+        console.debug(`➡ Sent: ${command}`);
       });
 
       let responseData = '';
       this.socket.once('data', (data) => {
         responseData = data.toString();
-        // console.debug(`⬅ Received: ${responseData}`);
+        console.debug(`⬅ Received: ${responseData}`);
         resolve(responseData);
         return;
       });
@@ -120,6 +131,7 @@ export class SmtpConnectionService {
       });
 
       this.socket.on('error', (err) => {
+        console.log(err);
         // Log the error
         // this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
         // Detect if the connection is blocked
@@ -166,13 +178,23 @@ export class SmtpConnectionService {
         resolve(emailStatus);
         await this.sendCommand(`QUIT`);
       } catch (e) {
-        // console.log({ e });
+        console.log({ e });
         await this.sendCommand(`QUIT`);
+        if (typeof e === 'string') {
+          if (e === EmailReason.SMTP_TIMEOUT) {
+            const error: EmailStatusType = {
+              status: EmailStatus.UNKNOWN,
+              reason: EmailReason.SMTP_TIMEOUT,
+            };
+            resolve(error);
+            return;
+          }
+        }
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
           reason: e.toString(),
         };
-        console.log({ error });
+
         reject(error);
         return;
       }
