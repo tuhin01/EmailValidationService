@@ -521,7 +521,7 @@ export class DomainService {
         }
       });
 
-      socket.on('close', () => {
+      socket.once('close', () => {
         console.log('Closing...', stage, commands.length);
         // If the socket is closed by the SMTP server without letting us complete
         // all commands then it probably blocked our IP. But if all commands
@@ -827,9 +827,8 @@ export class DomainService {
         email,
         mxRecordHost,
       );
-      // If - User enabled verify+ and it's a free email and smtp response
+      // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
-      // If timeout then we must trigger Verify+ (like zerobounce)
       if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
         const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
         emailStatus.email_status = verifyPlusResponse.status;
