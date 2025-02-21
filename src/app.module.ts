@@ -22,6 +22,7 @@ import { TimeModule } from './time/time.module';
 import { QueueModule } from './queue/queue.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SmtpConnectionModule } from './smtp-connection/smtp-connection.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     TimeModule,
     QueueModule,
     WebhookModule,
+    SmtpConnectionModule,
   ],
   controllers: [AppController],
   providers: [

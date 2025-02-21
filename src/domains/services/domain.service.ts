@@ -39,6 +39,7 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 import { User } from '@/users/entities/user.entity';
 import { MailerService } from '@/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
+import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 
 @Injectable()
 export class DomainService {
@@ -48,6 +49,7 @@ export class DomainService {
     private disposableDomainsService: DisposableDomainsService,
     private emailRolesService: EmailRolesService,
     private mailerService: MailerService,
+    private smtpService: SmtpConnectionService,
     private winstonLoggerService: WinstonLoggerService,
   ) {
   }
@@ -804,9 +806,9 @@ export class DomainService {
         // This means the domain accepts any email address as valid
         // We mark these as 'catch_all' as the email is valid but
         // high chance of not getting any reply back.
-        const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
-        const catchAllResponse: any = await this.catchAllCheck(catchAllEmail, mxRecordHost);
-        console.log({ catchAllResponse });
+        // const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
+        // const catchAllResponse: any = await this.catchAllCheck(catchAllEmail, mxRecordHost);
+        // console.log({ catchAllResponse });
         // If catchall check response timeout then
         // if (catchAllResponse.reason === EmailReason.SMTP_TIMEOUT) {
         //   // If timeout then we must trigger Verify+ (like zerobounce)
@@ -823,10 +825,13 @@ export class DomainService {
       }
       // Step 9 : Make a SMTP Handshake to very if the email address exist in the mail server
       // If email exist then we can confirm the email is valid
-      const smtpResponse: EmailStatusType = await this.verifySmtp(
-        email,
-        mxRecordHost,
-      );
+      // const smtpResponse: EmailStatusType = await this.verifySmtp(
+      //   email,
+      //   mxRecordHost,
+      // );
+
+      await this.smtpService.connect(mxRecordHost);
+      const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
       if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {

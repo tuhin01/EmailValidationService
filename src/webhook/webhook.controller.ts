@@ -17,11 +17,11 @@ export class WebhookController {
   @Public()
   async receiveEmailDeliveryStatus(
     @Req() req: any,
-    @Body() body: any
+    @Body() body: any,
   ) {
     const headers = req.headers;
     const messageType = headers['x-amz-sns-message-type'];
-    if(messageType === 'SubscriptionConfirmation') {
+    if (messageType === 'SubscriptionConfirmation') {
       return { status: 'Subscription Confirmed' };
     }
 
@@ -41,6 +41,5 @@ export class WebhookController {
     }
 
     return await this.webhookService.handleSnsNotification(notification);
-
   }
 }

@@ -11,6 +11,7 @@ import { DomainService } from '@/domains/services/domain.service';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { MailerModule } from '@/mailer/mailer.module';
 import { ConfigModule } from '@nestjs/config';
+import { SmtpConnectionModule } from '@/smtp-connection/smtp-connection.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ConfigModule } from '@nestjs/config';
     EmailRolesModule,
     MailerModule,
     ConfigModule,
+    SmtpConnectionModule,
     WinstonLoggerModule,
   ],
   controllers: [DomainsController],
