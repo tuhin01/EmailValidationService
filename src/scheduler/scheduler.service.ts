@@ -63,6 +63,8 @@ export class SchedulerService {
         processingStatus,
       );
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
+      console.log('DD');
+      console.log({ results });
       const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
       const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
@@ -76,7 +78,7 @@ export class SchedulerService {
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
       const bulkFileUpdateData: UpdateBulkFileDto = {
-        file_status: temporary_blocked > 0 ? BulkFileStatus.GRAY_LIST_CHECK : BulkFileStatus.COMPLETE,
+        file_status: temporary_blocked > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
@@ -105,43 +107,44 @@ export class SchedulerService {
   }
 
   @Cron('1 * * * * *') // Runs every minutes
-  public async runGrayListEmailValidation() {
-    const grayListFile = await this.bulkFilesService.getGrayListCheckBulkFile();
-    console.log({ grayListFile });
-    if (!grayListFile.length) {
+  public async runGreyListEmailValidation() {
+    const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
+    console.log({ grayListFile: greyListFile });
+    if (!greyListFile.length) {
       return;
     }
-    const firstGrayListFile: BulkFile = grayListFile[0];
-    const user: User = await this.userService.findOneById(firstGrayListFile.user_id);
+    const firstGreyListFile: BulkFile = greyListFile[0];
+    const user: User = await this.userService.findOneById(firstGreyListFile.user_id);
     if (!user) {
-      this.winstonLoggerService.error('runGrayListEmailValidation()', `No user found for user_id: ${firstGrayListFile.user_id}`);
+      this.winstonLoggerService.error('runGrayListEmailValidation()', `No user found for user_id: ${firstGreyListFile.user_id}`);
 
       return;
     }
 
-    const processedEmails: ProcessedEmail[] = await this.domainService.getGrayListedProcessedEmail(firstGrayListFile.id);
+    const processedEmails: ProcessedEmail[] = await this.domainService.getGreyListedProcessedEmail(firstGreyListFile.id);
     if (processedEmails.length) {
       return;
     }
-    console.log('GrayList is in progress...');
+    console.log('GreyList is in progress...');
     // Generate all csv and update DB with updated counts.
-    await this.generateBulkFileResultCsv(firstGrayListFile.id);
+    await this.generateBulkFileResultCsv(firstGreyListFile.id);
 
     let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
     };
     await this.bulkFilesService.updateBulkFile(
-      firstGrayListFile.id,
+      firstGreyListFile.id,
       completeStatus,
     );
 
-    await this.__sendEmailNotification(user, firstGrayListFile.id);
+    await this.__sendEmailNotification(user, firstGreyListFile.id);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
     const processedEmails: ProcessedEmail[] = await this.domainService.findProcessedEmailsByFileId(bulkFile.id);
     const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path, processedEmails);
+    console.log({ results });
     const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
     const {
       valid_email_count,
@@ -300,8 +303,8 @@ export class SchedulerService {
     let csvHeaders = [];
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = new Bottleneck({
-      maxConcurrent: 3, // Adjust based on your testing
-      minTime: 300, // 300ms delay between requests (adjustable)
+      maxConcurrent: 1, // Adjust based on your testing
+      // minTime: 500, // 300ms delay between requests (adjustable)
     });
 
     try {
@@ -330,32 +333,38 @@ export class SchedulerService {
 
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-          if (!record.Email) {
-            return null; // Skip records without an Email field
-          }
+          console.log(`Validation started: ${record.Email}`);
           const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
             record.Email,
             user,
             bulkFile.id,
           );
-          // Add emails to GraList check
+          console.log(`Validation done: ${validationResponse.email_address}`);
+          // Add emails to GreyList check
           if (
             validationResponse.email_sub_status === EmailReason.GREY_LISTED
           ) {
             await this.queueService.addGreyListEmailToQueue(validationResponse);
           }
-          return {
+          const res = {
             ...record,
             ...validationResponse,
           };
+        console.log(`Complete ${res.email_address}`);
+        return res;
         }),
       );
+      console.log('AA');
       // Wait for all validations to complete
       const results = await Promise.allSettled(validationPromises);
-
-      return results
+      console.log('BB');
+      console.log(results);
+      const ressss = results
         .filter(result => result.status === 'fulfilled')
         .map(result => (result as PromiseFulfilledResult<any>).value);
+      console.log('CC');
+      console.log({ ressss });
+      return ressss;
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;
@@ -387,10 +396,8 @@ export class SchedulerService {
       });
 
       for (let record of records) {
-        const validationResponse: EmailValidationResponseType = emailValidationData.find(e => {
-          return e.email_address === record.Email;
-        });
-        Object.assign(record, validationResponse); // Merges source into target (modifies target)
+        const validationResponse: EmailValidationResponseType = await this.domainService.getProcessedEmail(record.Email);
+        record = Object.assign(record, validationResponse); // Merges source into target (modifies target)
       }
 
       return records;

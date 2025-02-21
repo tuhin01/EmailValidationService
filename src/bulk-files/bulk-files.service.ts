@@ -27,9 +27,9 @@ export class BulkFilesService {
     return await BulkFile.findOne({ where: { id: fileId } });
   }
 
-  async getGrayListCheckBulkFile() {
+  async getGreyListCheckBulkFile() {
     return await BulkFile.find({
-      where: { file_status: BulkFileStatus.GRAY_LIST_CHECK },
+      where: { file_status: BulkFileStatus.GREY_LIST_CHECK },
       order: { id: 'ASC' },
       take: 1,
     });

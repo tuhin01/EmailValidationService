@@ -128,7 +128,7 @@ export class DomainService {
     }
   }
 
-  async getProcessedEmail(email: string) {
+  async getInvalidProcessedEmail(email: string) {
     const processedEmail: ProcessedEmail = await ProcessedEmail.findOneBy({
       email_address: email,
     });
@@ -160,7 +160,18 @@ export class DomainService {
   }
 
 
-  async getGrayListedProcessedEmail(bulkFileId: number) {
+  async getProcessedEmail(email: string) {
+    const processedEmail: ProcessedEmail = await ProcessedEmail.findOneBy({
+      email_address: email,
+    });
+    if (processedEmail) {
+      return processedEmail;
+    }
+    return null;
+  }
+
+
+  async getGreyListedProcessedEmail(bulkFileId: number) {
     return ProcessedEmail.find({
       where: [
         {
@@ -400,7 +411,7 @@ export class DomainService {
 
     // Check if we processed the email today.
     // If we did then just return the previous result
-    const processedEmail: ProcessedEmail = await this.getProcessedEmail(email);
+    const processedEmail: ProcessedEmail = await this.getInvalidProcessedEmail(email);
     if (processedEmail) {
       console.log(processedEmail.email_address);
       // Delete these property so these are not included in the final response.
@@ -423,6 +434,7 @@ export class DomainService {
       const [account, domain] = email.split('@');
       emailStatus.account = account;
       emailStatus.domain = domain;
+      console.log(`Email domain ${domain} for ${email}`);
 
       // Query DB to check if domain found in error_domains
       const dbErrorDomain: ErrorDomain = await this.findErrorDomain(domain);
@@ -488,7 +500,9 @@ export class DomainService {
       // );
 
       await this.smtpService.connect(mxRecordHost);
+      console.log(`${email} smtp connected`);
       const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
+      console.log(`${email}`, smtpResponse);
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
       if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
@@ -519,6 +533,8 @@ export class DomainService {
       // If everything goes well, then return the emailStatus
       return emailStatus;
     } catch (error) {
+      console.log(`Email - ${email}`);
+      console.log({ error });
       emailStatus.email_status = error['status'];
       emailStatus.email_sub_status = error['reason'];
       emailStatus.free_email = freeEmailProviderList.includes(
