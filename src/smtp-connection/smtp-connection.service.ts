@@ -32,7 +32,7 @@ export class SmtpConnectionService {
       });
 
       this.socket.setEncoding('utf-8');
-      this.socket.setTimeout(5000);
+      this.socket.setTimeout(10000);
 
       this.socket.once('data', async (data) => {
         try {
