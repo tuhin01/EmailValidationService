@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import  * as net from 'net';
+import * as net from 'net';
 import * as tls from 'tls';
 import {
   EmailReason,
@@ -34,37 +34,39 @@ export class SmtpConnectionService {
       this.socket.setEncoding('utf-8');
       this.socket.setTimeout(5000);
 
-      try {
-        await this.sendCommand(``);
-        const ehloResponse = await this.sendCommand(`EHLO ${this.host}`);
-        if (ehloResponse.includes('STARTTLS')) {
-          await this.sendCommand(`STARTTLS`);
-          // Step 3: Upgrade Connection to TLS
-          console.log('🔒 Upgrading to TLS...');
-          const secureSocket = tls.connect(
-            {
-              socket: this.socket,
-              port: 587,
-              host: this.host,
-              servername: this.host,
-              rejectUnauthorized: false, // Allow self-signed certificates
-            },
-            () => {
-              if (secureSocket.authorized) {
-                console.log('Authorized');
-              }
-              if (secureSocket.encrypted) {
-                console.log('✅ TLS secured. Ready to authenticate.');
-                this.socket = secureSocket; // Replace with secure socket
+      this.socket.once('data', async (data) => {
+        try {
+          const ehloResponse = await this.sendCommand(`EHLO ${this.host}`);
+          if (ehloResponse.includes('STARTTLS')) {
+            await this.sendCommand(`STARTTLS`);
+            // Step 3: Upgrade Connection to TLS
+            console.log('🔒 Upgrading to TLS...');
+            const secureSocket = tls.connect(
+              {
+                socket: this.socket,
+                port: 587,
+                host: this.host,
+                servername: this.host,
+                rejectUnauthorized: false, // Allow self-signed certificates
+              },
+              () => {
+                if (secureSocket.authorized) {
+                  console.log('Authorized');
+                }
+                if (secureSocket.encrypted) {
+                  console.log('✅ TLS secured. Ready to authenticate.');
+                  this.socket = secureSocket; // Replace with secure socket
 
-                resolve();
-              }
-            },
-          );
+                  this.socket.removeAllListeners('data');
+                  resolve();
+                }
+              },
+            );
+          }
+        } catch (e) {
+          reject(e);
         }
-      } catch (e) {
-        reject(e);
-      }
+      });
     });
   }
 
