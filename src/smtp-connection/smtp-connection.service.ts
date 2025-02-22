@@ -83,6 +83,28 @@ export class SmtpConnectionService {
                 reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
               };
               reject(error);
+              // If STARTTLS is available but does not let us upgrade, we QUIT from it.
+              this.sendCommand(`QUIT`);
+              return;
+            });
+            secureSocket.once('close', () => {
+              console.log('secureSocket closed');
+              const error: EmailStatusType = {
+                status: EmailStatus.INVALID,
+                reason: EmailReason.MAILBOX_NOT_FOUND,
+              };
+              reject(error);
+              this.sendCommand(`QUIT`);
+              return;
+            });
+            secureSocket.once('timeout', () => {
+              console.log('secureSocket timeout');
+              const error: EmailStatusType = {
+                status: EmailStatus.UNKNOWN,
+                reason: EmailReason.SMTP_TIMEOUT,
+              };
+              resolve(error);
+              this.sendCommand(`QUIT`);
               return;
             });
           } else {
