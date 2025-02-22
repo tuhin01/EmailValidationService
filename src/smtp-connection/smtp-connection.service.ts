@@ -18,7 +18,7 @@ export class SmtpConnectionService {
   private readonly port: number = 25; // Use 465 for SSL, 587 for STARTTLS
 
   constructor(
-    private winstonLoggerService: WinstonLoggerService,
+    // private winstonLoggerService: WinstonLoggerService,
   ) {
   }
 

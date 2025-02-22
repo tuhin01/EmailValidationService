@@ -496,8 +496,11 @@ export class DomainService {
       //   mxRecordHost,
       // );
 
-      await this.smtpService.connect(mxRecordHost);
-      const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
+      const smtpService = new SmtpConnectionService();
+      await smtpService.connect(mxRecordHost);
+      const smtpResponse: EmailStatusType = await smtpService.verifyEmail(email);
+      // await this.smtpService.connect(mxRecordHost);
+      // const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
       // console.log(`${email}`, { smtpResponse });
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
