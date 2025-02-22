@@ -497,30 +497,46 @@ export class DomainService {
       // );
       console.log({ email });
       const smtpService = new SmtpConnectionService(this.winstonLoggerService);
-       await smtpService.connect(mxRecordHost);
-      const smtpResponse: EmailStatusType = await smtpService.verifyEmail(email);
-      console.log({ smtpResponse });
-      // await this.smtpService.connect(mxRecordHost);
-      // const smtpResponse: EmailStatusType = await this.smtpService.verifyEmail(email);
-      // console.log(`${email}`, { smtpResponse });
+      const smtpConnectionStatus: EmailStatusType = await smtpService.connect(mxRecordHost);
+      console.log({ smtpConnectionStatus });
+      // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
+      // rejection occur and it goes to catch block
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
-      if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
-        const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
-        emailStatus.email_status = verifyPlusResponse.status;
-        emailStatus.email_sub_status = verifyPlusResponse.reason;
-        emailStatus.verify_plus = true;
+      if (smtpConnectionStatus.reason === EmailReason.SMTP_TIMEOUT) {
+        if (user.verify_plus) {
+          const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+          emailStatus.email_status = verifyPlusResponse.status;
+          emailStatus.email_sub_status = verifyPlusResponse.reason;
+          emailStatus.verify_plus = true;
+        } else {
+          emailStatus.email_status = smtpConnectionStatus.status;
+          emailStatus.email_sub_status = smtpConnectionStatus.reason;
+        }
       } else {
-        emailStatus.email_status = smtpResponse.status;
-        emailStatus.email_sub_status = smtpResponse.reason;
+        const smtpResponse: EmailStatusType = await smtpService.verifyEmail(email);
+        console.log({ smtpResponse });
+        // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
+        // rejection occur and it goes to catch block
+        // If - User enabled verify+ and smtp response
+        // is a 'timeout' then we must trigger Verify+
+        if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
+          const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+          emailStatus.email_status = verifyPlusResponse.status;
+          emailStatus.email_sub_status = verifyPlusResponse.reason;
+          emailStatus.verify_plus = true;
+        } else {
+          emailStatus.email_status = smtpResponse.status;
+          emailStatus.email_sub_status = smtpResponse.reason;
+        }
       }
 
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (
-        smtpResponse.status === EmailStatus.VALID ||
-        smtpResponse.status === EmailStatus.UNKNOWN ||
-        smtpResponse.status === EmailStatus.CATCH_ALL
+        emailStatus.email_status === EmailStatus.VALID ||
+        emailStatus.email_status === EmailStatus.UNKNOWN ||
+        emailStatus.email_status === EmailStatus.CATCH_ALL
       ) {
         // const domainInfo: any = await this.getDomainAge(domain, dbDomain);
         // dbDomain.domain_age_days = domainInfo.domain_age_days;
@@ -554,7 +570,8 @@ export class DomainService {
         'X-SES-CONFIGURATION-SET': 'Default',
       },
       subject: '',
-      template: '',
+      // template name is required even if its empty.
+      template: 'email_verify+',
       context: {},
       attachments: [],
     };

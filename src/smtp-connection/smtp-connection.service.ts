@@ -31,12 +31,15 @@ export class SmtpConnectionService {
   async connect(mxHost: string): Promise<any> {
     this.host = mxHost;
     return new Promise(async (resolve, reject): Promise<any> => {
+      let socketDataFired = false;
       this.socket = net.createConnection(this.port, this.host, () => {
+        console.log('Socket connected!');
       });
       this.socket.setEncoding(this.socketEncoding);
       this.socket.setTimeout(this.socketTimeout);
 
       this.socket.once('data', async (data) => {
+        socketDataFired = true;
         try {
           const ehloResponse = await this.sendCommand(`EHLO ${this.host}`);
           const ehloStatus = this.parseSmtpResponseData(ehloResponse, mxHost);
@@ -119,13 +122,35 @@ export class SmtpConnectionService {
         reject(error);
         return;
       });
+
+
+      this.socket.once('close', () => {
+        console.log('closed');
+        if (!socketDataFired) {
+          const error: EmailStatusType = {
+            status: EmailStatus.INVALID,
+            reason: EmailReason.MAILBOX_NOT_FOUND,
+          };
+          reject(error);
+          return;
+        }
+      });
+      this.socket.once('timeout', () => {
+        console.log('timeout');
+        const error: EmailStatusType = {
+          status: EmailStatus.UNKNOWN,
+          reason: EmailReason.SMTP_TIMEOUT,
+        };
+        resolve(error);
+        return;
+      });
     });
   }
 
   private async sendCommand(command: string, email = ''): Promise<string> {
     // Before sending a new command, try to remove previous command listeners to
     // avoid getting old stream response in socket.on('data')
-    this.socket.removeAllListeners('data');
+    this.socket.removeAllListeners();
     let timeout: NodeJS.Timeout;
     // Track command start time to detect calculate server response time.
     let startTime = Date.now();
