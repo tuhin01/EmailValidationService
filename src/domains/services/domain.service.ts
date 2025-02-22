@@ -424,14 +424,14 @@ export class DomainService {
       return emailStatus;
     }
 
+    const [account, domain] = email.split('@');
+    // Get domain part from the email address
+    emailStatus.account = account;
+    emailStatus.domain = domain;
+
     try {
       // Step - 1 : Check email syntax validity
       await this.validateEmailFormat(email);
-
-      // Get domain part from the email address
-      const [account, domain] = email.split('@');
-      emailStatus.account = account;
-      emailStatus.domain = domain;
 
       // Query DB to check if domain found in error_domains
       const dbErrorDomain: ErrorDomain = await this.findErrorDomain(domain);
@@ -498,39 +498,16 @@ export class DomainService {
       console.log({ email });
       const smtpService = new SmtpConnectionService(this.winstonLoggerService);
       const smtpConnectionStatus: EmailStatusType = await smtpService.connect(mxRecordHost);
-      console.log({ smtpConnectionStatus });
       // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
-      // rejection occur and it goes to catch block
+      // rejection occur, and it goes to catch block
       // If - User enabled verify+ and smtp response
       // is a 'timeout' then we must trigger Verify+
       if (smtpConnectionStatus.reason === EmailReason.SMTP_TIMEOUT) {
-        if (user.verify_plus) {
-          const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
-          emailStatus.email_status = verifyPlusResponse.status;
-          emailStatus.email_sub_status = verifyPlusResponse.reason;
-          emailStatus.verify_plus = true;
-        } else {
-          emailStatus.email_status = smtpConnectionStatus.status;
-          emailStatus.email_sub_status = smtpConnectionStatus.reason;
-        }
+        emailStatus = await this.__processVerifyPlus(email, user, smtpConnectionStatus, emailStatus);
       } else {
         const smtpResponse: EmailStatusType = await smtpService.verifyEmail(email);
-        console.log({ smtpResponse });
-        // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
-        // rejection occur and it goes to catch block
-        // If - User enabled verify+ and smtp response
-        // is a 'timeout' then we must trigger Verify+
-        if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
-          const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
-          emailStatus.email_status = verifyPlusResponse.status;
-          emailStatus.email_sub_status = verifyPlusResponse.reason;
-          emailStatus.verify_plus = true;
-        } else {
-          emailStatus.email_status = smtpResponse.status;
-          emailStatus.email_sub_status = smtpResponse.reason;
-        }
+        emailStatus = await this.__processVerifyPlus(email, user, smtpResponse, emailStatus);
       }
-
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
       if (
@@ -554,9 +531,31 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-      // console.log(`${email}`, { error });
+      console.log(emailStatus);
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
+      return emailStatus;
+    }
+  }
+
+  private async __processVerifyPlus(
+    email: string,
+    user: User,
+    smtpResponse: EmailStatusType,
+    emailOldStatus: EmailValidationResponseType,
+  ): Promise<EmailValidationResponseType> {
+    const emailStatus: EmailValidationResponseType = {
+      ...emailOldStatus,
+      verify_plus: true,
+    };
+    if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
+      const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
+      emailStatus.email_status = verifyPlusResponse.status;
+      emailStatus.email_sub_status = verifyPlusResponse.reason;
+      return emailStatus;
+    } else {
+      emailStatus.email_status = smtpResponse.status;
+      emailStatus.email_sub_status = smtpResponse.reason;
       return emailStatus;
     }
   }

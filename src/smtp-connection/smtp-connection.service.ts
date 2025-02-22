@@ -193,6 +193,7 @@ export class SmtpConnectionService {
       this.socket.on('data', (chunk) => {
         const responseTime = Date.now() - startTime;
         responseData = chunk.toString();
+        console.debug(`⬅ Received: ${responseData}`);
 
         // Detect if mail server is slow or not.
         if (command.includes('EHLO') && responseTime > SMTP_RESPONSE_MAX_DELAY) {
