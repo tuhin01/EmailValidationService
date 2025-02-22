@@ -126,6 +126,32 @@ class Complaint {
   userAgent: string;
 }
 
+class DelayedRecipients {
+  @IsString()
+  emailAddress: string;
+
+  @IsString()
+  status: string;
+
+  @IsString()
+  diagnosticCode: string;
+}
+
+class DeliveryDelay {
+  @IsString()
+  timestamp: string;
+
+  @IsNumber()
+  delayTimeMillis: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  delayedRecipients: DelayedRecipients[];
+
+  @IsString()
+  reason: string;
+}
+
 export class SnsNotificationDto {
   @IsString()
   @IsNotEmpty()
@@ -146,4 +172,7 @@ export class SnsNotificationDto {
   @IsOptional()
   complaint?: Complaint;
 
+  @IsObject()
+  @IsOptional()
+  deliveryDelay?: DeliveryDelay;
 }

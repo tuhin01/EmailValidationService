@@ -4,17 +4,14 @@ import { DomainService } from '@/domains/services/domain.service';
 import {
   EmailReason,
   EmailStatus,
-  EmailStatusType,
   EmailValidationResponseType,
 } from '@/common/utility/email-status-type';
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
-import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 
 @Injectable()
 export class WebhookService {
   constructor(
     private domainService: DomainService,
-    private smtpService: SmtpConnectionService,
   ) {
   }
 
@@ -26,17 +23,28 @@ export class WebhookService {
         break;
       case 'Delivery':
         email = notification.delivery.recipients[0];
-        const verifyPlusResponse: EmailStatusType = this.smtpService.parseSmtpResponseData(notification.delivery.smtpResponse, email);
         emailStatus = {
           email_address: email,
           verify_plus: true,
-          email_status: verifyPlusResponse.status,
-          email_sub_status: verifyPlusResponse.reason,
+          email_status: EmailStatus.VALID,
+          email_sub_status: EmailReason.EMPTY,
           retry: RetryStatus.COMPLETE,
         };
         await this.domainService.updateProcessedEmailByEmail(email, emailStatus);
 
         return notification.delivery;
+      case 'DeliveryDelay':
+        email = notification.deliveryDelay.delayedRecipients[0].emailAddress;
+        emailStatus = {
+          email_address: email,
+          verify_plus: true,
+          email_status: EmailStatus.UNKNOWN,
+          email_sub_status: EmailReason.GREY_LISTED,
+          retry: RetryStatus.PENDING,
+        };
+        await this.domainService.updateProcessedEmailByEmail(email, emailStatus);
+
+        return notification.deliveryDelay;
       case 'Bounce':
         email = notification.bounce.bouncedRecipients[0].emailAddress;
         emailStatus = {

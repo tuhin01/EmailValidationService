@@ -68,12 +68,9 @@ export class SmtpConnectionService {
                 }
                 if (secureSocket.encrypted) {
                   console.log('✅ TLS secured. Ready to authenticate.');
-                  this.socket = secureSocket; // Replace with secure socket
-
-                  this.socket.removeAllListeners('data');
-                  this.socket.removeAllListeners('error');
-                  this.socket.removeAllListeners('close');
-                  this.socket.removeAllListeners('timeout');
+                  this.socket.removeAllListeners();
+                  // Replace with secure socket
+                  this.socket = secureSocket;
                   resolve(true);
                 }
               },

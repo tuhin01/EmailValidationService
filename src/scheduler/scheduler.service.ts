@@ -327,6 +327,30 @@ export class SchedulerService {
         );
       });
 
+      // const results = [];
+      // for (const record of records) {
+      //   console.log(`Validation started: ${record.Email}`);
+      //   const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+      //     record.Email,
+      //     user,
+      //     bulkFile.id,
+      //   );
+      //   // console.log(`Validation done: ${validationResponse.email_address}`);
+      //   // Add emails to GreyList check
+      //   if (
+      //     validationResponse.email_sub_status === EmailReason.GREY_LISTED
+      //   ) {
+      //     await this.queueService.addGreyListEmailToQueue(validationResponse);
+      //   }
+      //   const res = {
+      //     ...record,
+      //     ...validationResponse,
+      //   };
+      //   results.push(res);
+      // }
+      // return results;
+
+
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
           console.log(`Validation started: ${record.Email}`);
