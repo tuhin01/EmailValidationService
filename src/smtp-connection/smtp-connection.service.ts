@@ -10,6 +10,7 @@ import {
 } from '@/common/utility/email-status-type';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
+import { SMTP_RESPONSE_MAX_DELAY } from '@/common/utility/constant';
 
 @Injectable()
 export class SmtpConnectionService {
@@ -20,6 +21,7 @@ export class SmtpConnectionService {
   private readonly port: number = 25;
   private readonly tlsPort: number = 587;
   private readonly tlsMinVersion: any = 'TLSv1';
+  private isSmtpSlow: boolean = false;
 
   constructor(
     private winstonLoggerService: WinstonLoggerService,
@@ -37,8 +39,14 @@ export class SmtpConnectionService {
       this.socket.once('data', async (data) => {
         try {
           const ehloResponse = await this.sendCommand(`EHLO ${this.host}`);
+          const ehloStatus = this.parseSmtpResponseData(ehloResponse, mxHost);
+          if (ehloStatus.status !== EmailStatus.VALID) {
+            reject(ehloStatus);
+            return;
+          }
           if (ehloResponse.includes('STARTTLS')) {
             await this.sendCommand(`STARTTLS`);
+
             // Step 3: Upgrade Connection to TLS
             console.log('🔒 Upgrading to TLS...');
             const secureSocket = tls.connect(
@@ -46,6 +54,7 @@ export class SmtpConnectionService {
                 socket: this.socket,
                 port: this.tlsPort,
                 host: this.host,
+                timeout: this.socketTimeout,
                 minVersion: this.tlsMinVersion, // Specify minimum TLS version
                 servername: this.host,
                 rejectUnauthorized: false, // Allow self-signed certificates
@@ -74,9 +83,13 @@ export class SmtpConnectionService {
                 reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
               };
               reject(error);
-              secureSocket.removeAllListeners();
               return;
             });
+          } else {
+            // If ehloResponse not rejecting and does not have "STARTTLS" then we have to resolve()
+            // here to continue using the unencrypted socket.
+            console.error('❌ STARTTLS Not Found. Using regular socket');
+            resolve(true);
           }
         } catch (e) {
           // If "EHLO" command throw exception then it is caught here
@@ -92,6 +105,7 @@ export class SmtpConnectionService {
             emailStatus.reason = e;
           }
           reject(emailStatus);
+          return;
         }
       });
       // This socket error handles if any issue when connecting to email server
@@ -103,24 +117,69 @@ export class SmtpConnectionService {
           reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
         };
         reject(error);
-        this.socket.removeAllListeners();
         return;
       });
     });
   }
 
   private async sendCommand(command: string, email = ''): Promise<string> {
+    this.socket.removeAllListeners('data');
+    let timeout: NodeJS.Timeout;
+    let startTime = Date.now();
+
     return new Promise((resolve, reject) => {
       this.socket.write(command + '\r\n', 'utf-8', () => {
         console.debug(`➡ Sent: ${command}`);
       });
 
+      // let responseData = '';
+      // this.socket.once('data', (data) => {
+      //   responseData = data.toString();
+      //   console.debug(`⬅ Received: ${responseData}`);
+      //   // resolve(responseData);
+      //   // return;
+      // });
+
       let responseData = '';
-      this.socket.once('data', (data) => {
-        responseData = data.toString();
-        console.debug(`⬅ Received: ${responseData}`);
-        resolve(responseData);
-        return;
+      // let socketChunks = [];
+      // this.socket.on('data', (chunk) => {
+      //   responseData += chunk.toString();
+      //   // socketChunks.push(chunk.toString());
+      //   console.debug(`⬅ Received: ${chunk.toString()}`);
+      //   console.log('Has \r\n - ' + responseData.includes('\r\n'));
+      //   // // Check if SMTP response is complete
+      //   if ((command.includes('EHLO') || command.includes('MAIL FROM')) && responseData.includes('250')) {
+      //     const resArr = responseData.split('\r\n');
+      //     const filteredArr = resArr.filter((i => i !== ''));
+      //     const lastResponseData = filteredArr[filteredArr.length - 1];
+      //     console.debug(`⬅ Last Part Received: ${lastResponseData}`);
+      //     resolve(lastResponseData);
+      //     responseData = '';
+      //     return;
+      //   } else if(command.includes('RCPT TO')) {
+      //     resolve(responseData);
+      //     return;
+      //   }
+      // });
+
+      this.socket.on('data', (chunk) => {
+        const responseTime = Date.now() - startTime;
+        console.log({ responseTime });
+        responseData = chunk.toString();
+
+        if (command.includes('EHLO') && responseTime > SMTP_RESPONSE_MAX_DELAY) {
+          this.isSmtpSlow = true;
+        }
+
+        if (this.isSmtpSlow) {
+          clearTimeout(timeout); // Reset timeout on new data
+          timeout = setTimeout(() => {
+            resolve(responseData);
+          }, 2000); // Wait 2 seconds after last chunk
+        } else {
+          resolve(responseData);
+          return;
+        }
       });
 
       this.socket.once('close', () => {
@@ -135,12 +194,10 @@ export class SmtpConnectionService {
         } else {
           reject(EmailReason.IP_BLOCKED);
         }
-        this.socket.removeAllListeners();
         return;
       });
 
       this.socket.once('error', (err) => {
-        // console.log(err);
         // Log the error
         this.winstonLoggerService.error(`socket.once() error - ${email}`, JSON.stringify(err));
         // Detect if the connection is blocked
@@ -149,7 +206,6 @@ export class SmtpConnectionService {
         } else {
           reject(err.message);
         }
-        this.socket.removeAllListeners();
         return;
       });
 
@@ -179,7 +235,7 @@ export class SmtpConnectionService {
             reason: EmailReason.EMPTY,
           };
           reject(error);
-
+          await this.sendCommand(`QUIT`);
           return;
         }
         const responseRcptTo = await this.sendCommand(`RCPT TO:<${email}>`, email);
@@ -189,7 +245,6 @@ export class SmtpConnectionService {
         await this.sendCommand(`QUIT`);
       } catch (e) {
         // console.log({ e });
-        await this.sendCommand(`QUIT`);
         if (typeof e === 'string') {
           if (e === EmailReason.SMTP_TIMEOUT) {
             const error: EmailStatusType = {
@@ -206,6 +261,7 @@ export class SmtpConnectionService {
         };
 
         reject(error);
+        await this.sendCommand(`QUIT`);
         return;
       }
     });
@@ -257,6 +313,7 @@ export class SmtpConnectionService {
       // Response code starts with "4" - Temporary error, and we should retry later
       // Response code starts with "5" - Permanent error and must not retry
       if (data) {
+        console.log({ data });
         // Log the response
         if (!data.startsWith('2')) {
           this.winstonLoggerService.error(`parseSmtpResponseData() else - ${email}`, data);

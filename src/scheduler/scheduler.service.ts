@@ -63,8 +63,6 @@ export class SchedulerService {
         processingStatus,
       );
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
-      console.log('DD');
-      console.log({ results });
       const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
       const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
@@ -253,7 +251,9 @@ export class SchedulerService {
       ) {
         invalid_email_count++;
       } else if (
-        email.email_status === EmailStatus.UNKNOWN
+        email.email_status === EmailStatus.UNKNOWN ||
+        // Count "IP_BLOCKED" as unknown to report to user properly.
+        email.email_sub_status === EmailReason.IP_BLOCKED
       ) {
         unknown_count++;
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
@@ -333,7 +333,7 @@ export class SchedulerService {
 
       // Validate emails in parallel
       const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-          // console.log(`Validation started: ${record.Email}`);
+          console.log(`Validation started: ${record.Email}`);
           const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
             record.Email,
             user,
@@ -354,17 +354,11 @@ export class SchedulerService {
           return res;
         }),
       );
-      console.log('AA');
       // Wait for all validations to complete
       const results = await Promise.allSettled(validationPromises);
-      console.log('BB');
-      console.log(results);
-      const ressss = results
+      return results
         .filter(result => result.status === 'fulfilled')
         .map(result => (result as PromiseFulfilledResult<any>).value);
-      console.log('CC');
-      console.log({ ressss });
-      return ressss;
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;
