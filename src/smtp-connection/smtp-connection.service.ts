@@ -153,98 +153,102 @@ export class SmtpConnectionService {
     let startTime = Date.now();
 
     return new Promise((resolve, reject) => {
-      this.socket.write(command + '\r\n', 'utf-8', () => {
-        console.debug(`➡ Sent: ${command}`);
-      });
+      try {
+        this.socket.write(command + '\r\n', 'utf-8', () => {
+          console.debug(`➡ Sent: ${command}`);
+        });
 
-      // let responseData = '';
-      // this.socket.once('data', (data) => {
-      //   responseData = data.toString();
-      //   console.debug(`⬅ Received: ${responseData}`);
-      //   // resolve(responseData);
-      //   // return;
-      // });
+        // let responseData = '';
+        // this.socket.once('data', (data) => {
+        //   responseData = data.toString();
+        //   console.debug(`⬅ Received: ${responseData}`);
+        //   // resolve(responseData);
+        //   // return;
+        // });
 
-      let responseData = '';
-      // let socketChunks = [];
-      // this.socket.on('data', (chunk) => {
-      //   responseData += chunk.toString();
-      //   // socketChunks.push(chunk.toString());
-      //   console.debug(`⬅ Received: ${chunk.toString()}`);
-      //   console.log('Has \r\n - ' + responseData.includes('\r\n'));
-      //   // // Check if SMTP response is complete
-      //   if ((command.includes('EHLO') || command.includes('MAIL FROM')) && responseData.includes('250')) {
-      //     const resArr = responseData.split('\r\n');
-      //     const filteredArr = resArr.filter((i => i !== ''));
-      //     const lastResponseData = filteredArr[filteredArr.length - 1];
-      //     console.debug(`⬅ Last Part Received: ${lastResponseData}`);
-      //     resolve(lastResponseData);
-      //     responseData = '';
-      //     return;
-      //   } else if(command.includes('RCPT TO')) {
-      //     resolve(responseData);
-      //     return;
-      //   }
-      // });
+        let responseData = '';
+        // let socketChunks = [];
+        // this.socket.on('data', (chunk) => {
+        //   responseData += chunk.toString();
+        //   // socketChunks.push(chunk.toString());
+        //   console.debug(`⬅ Received: ${chunk.toString()}`);
+        //   console.log('Has \r\n - ' + responseData.includes('\r\n'));
+        //   // // Check if SMTP response is complete
+        //   if ((command.includes('EHLO') || command.includes('MAIL FROM')) && responseData.includes('250')) {
+        //     const resArr = responseData.split('\r\n');
+        //     const filteredArr = resArr.filter((i => i !== ''));
+        //     const lastResponseData = filteredArr[filteredArr.length - 1];
+        //     console.debug(`⬅ Last Part Received: ${lastResponseData}`);
+        //     resolve(lastResponseData);
+        //     responseData = '';
+        //     return;
+        //   } else if(command.includes('RCPT TO')) {
+        //     resolve(responseData);
+        //     return;
+        //   }
+        // });
 
-      this.socket.on('data', (chunk) => {
-        const responseTime = Date.now() - startTime;
-        responseData = chunk.toString();
-        console.debug(`⬅ Received: ${responseData}`);
+        this.socket.on('data', (chunk) => {
+          const responseTime = Date.now() - startTime;
+          responseData = chunk.toString();
+          console.debug(`⬅ Received: ${responseData}`);
 
-        // Detect if mail server is slow or not.
-        if (command.includes('EHLO') && responseTime > SMTP_RESPONSE_MAX_DELAY) {
-          console.log({ responseTime });
-          this.isSmtpSlow = true;
-        }
-
-        // If it's a slow server then we have to wait 2 sec to get the full 'stream'
-        // response from socket.on('data'). Otherwise we can't find out the last response
-        // to know the status of the email.
-        if (this.isSmtpSlow) {
-          clearTimeout(timeout); // Reset timeout on new data
-          timeout = setTimeout(() => {
-            resolve(responseData);
-          }, 2000);
-        } else {
-          resolve(responseData);
-          return;
-        }
-      });
-
-      this.socket.once('close', () => {
-        // If the socket is closed by the SMTP server without letting us complete
-        // all commands then it probably blocked our IP. But if all commands
-        // completed and SMTP response has code above 400, the email address is invalid
-        if (responseData) {
-          const responseCode = parseInt(responseData.substring(0, 3));
-          if (responseCode >= 400) {
-            reject(EmailReason.DOES_NOT_ACCEPT_MAIL);
+          // Detect if mail server is slow or not.
+          if (command.includes('EHLO') && responseTime > SMTP_RESPONSE_MAX_DELAY) {
+            console.log({ responseTime });
+            this.isSmtpSlow = true;
           }
-        } else {
-          reject(EmailReason.IP_BLOCKED);
-        }
-        return;
-      });
 
-      this.socket.once('error', (err) => {
-        // Log the error
-        this.winstonLoggerService.error(`socket.once() error - ${email}`, JSON.stringify(err));
-        // Detect if the connection is blocked
-        if (err.message.includes('ECONNREFUSED') || err.message.includes('EHOSTUNREACH')) {
-          reject(EmailReason.IP_BLOCKED);
-        } else {
-          reject(err.message);
-        }
-        return;
-      });
+          // If it's a slow server then we have to wait 2 sec to get the full 'stream'
+          // response from socket.on('data'). Otherwise we can't find out the last response
+          // to know the status of the email.
+          if (this.isSmtpSlow) {
+            clearTimeout(timeout); // Reset timeout on new data
+            timeout = setTimeout(() => {
+              resolve(responseData);
+            }, 2000);
+          } else {
+            resolve(responseData);
+            return;
+          }
+        });
 
-      this.socket.once('timeout', () => {
-        // Log the error
-        this.winstonLoggerService.error(`socket.once() timeout - ${email}`, responseData);
-        resolve(EmailReason.SMTP_TIMEOUT);
-        return;
-      });
+        this.socket.once('close', () => {
+          // If the socket is closed by the SMTP server without letting us complete
+          // all commands then it probably blocked our IP. But if all commands
+          // completed and SMTP response has code above 400, the email address is invalid
+          if (responseData) {
+            const responseCode = parseInt(responseData.substring(0, 3));
+            if (responseCode >= 400) {
+              reject(EmailReason.DOES_NOT_ACCEPT_MAIL);
+            }
+          } else {
+            reject(EmailReason.IP_BLOCKED);
+          }
+          return;
+        });
+
+        this.socket.once('error', (err) => {
+          // Log the error
+          this.winstonLoggerService.error(`socket.once() error - ${email}`, JSON.stringify(err));
+          // Detect if the connection is blocked
+          if (err.message.includes('ECONNREFUSED') || err.message.includes('EHOSTUNREACH')) {
+            reject(EmailReason.IP_BLOCKED);
+          } else {
+            reject(err.message);
+          }
+          return;
+        });
+
+        this.socket.once('timeout', () => {
+          // Log the error
+          this.winstonLoggerService.error(`socket.once() timeout - ${email}`, responseData);
+          resolve(EmailReason.SMTP_TIMEOUT);
+          return;
+        });
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
