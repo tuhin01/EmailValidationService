@@ -21,13 +21,11 @@ import { User } from '@/users/entities/user.entity';
 import * as process from 'node:process';
 import * as path from 'path';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
-import { TimeService } from '@/time/time.service';
 import { QueueService } from '@/queue/queue.service';
 import { Attachment } from 'nodemailer/lib/mailer';
 
 @Injectable()
 export class SchedulerService {
-  private readonly logger = new Logger(SchedulerService.name);
 
   constructor(
     private bulkFilesService: BulkFilesService,
@@ -91,7 +89,7 @@ export class SchedulerService {
 
       // Send email notification if the file status is complete
       if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-        // await this.__sendEmailNotification(user, firstPendingFile.id);
+        await this.__sendEmailNotification(user, firstPendingFile.id);
       }
 
       console.log('File Status updated to - COMPLETE');
@@ -133,7 +131,7 @@ export class SchedulerService {
       completeStatus,
     );
 
-    // await this.__sendEmailNotification(user, firstGreyListFile.id);
+    await this.__sendEmailNotification(user, firstGreyListFile.id);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {

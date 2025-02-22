@@ -123,8 +123,11 @@ export class SmtpConnectionService {
   }
 
   private async sendCommand(command: string, email = ''): Promise<string> {
+    // Before sending a new command, try to remove previous command listeners to
+    // avoid getting old stream response in socket.on('data')
     this.socket.removeAllListeners('data');
     let timeout: NodeJS.Timeout;
+    // Track command start time to detect calculate server response time.
     let startTime = Date.now();
 
     return new Promise((resolve, reject) => {
@@ -164,18 +167,22 @@ export class SmtpConnectionService {
 
       this.socket.on('data', (chunk) => {
         const responseTime = Date.now() - startTime;
-        console.log({ responseTime });
         responseData = chunk.toString();
 
+        // Detect if mail server is slow or not.
         if (command.includes('EHLO') && responseTime > SMTP_RESPONSE_MAX_DELAY) {
+          console.log({ responseTime });
           this.isSmtpSlow = true;
         }
 
+        // If it's a slow server then we have to wait 2 sec to get the full 'stream'
+        // response from socket.on('data'). Otherwise we can't find out the last response
+        // to know the status of the email.
         if (this.isSmtpSlow) {
           clearTimeout(timeout); // Reset timeout on new data
           timeout = setTimeout(() => {
             resolve(responseData);
-          }, 2000); // Wait 2 seconds after last chunk
+          }, 2000);
         } else {
           resolve(responseData);
           return;
