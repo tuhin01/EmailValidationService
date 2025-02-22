@@ -15,20 +15,24 @@ import { randomStringGenerator } from '@nestjs/common/utils/random-string-genera
 export class SmtpConnectionService {
   private socket: net.Socket | tls.TLSSocket;
   private host: string;
-  private readonly port: number = 25; // Use 465 for SSL, 587 for STARTTLS
+  private readonly socketTimeout: number = 10000;
+  private readonly socketEncoding: any = 'utf-8';
+  private readonly port: number = 25;
+  private readonly tlsPort: number = 587;
+  private readonly tlsMinVersion: any = 'TLSv1';
 
   constructor(
-    // private winstonLoggerService: WinstonLoggerService,
+    private winstonLoggerService: WinstonLoggerService,
   ) {
   }
 
-  async connect(mxHost): Promise<any> {
+  async connect(mxHost: string): Promise<any> {
     this.host = mxHost;
     return new Promise(async (resolve, reject): Promise<any> => {
       this.socket = net.createConnection(this.port, this.host, () => {
       });
-      this.socket.setEncoding('utf-8');
-      this.socket.setTimeout(10000);
+      this.socket.setEncoding(this.socketEncoding);
+      this.socket.setTimeout(this.socketTimeout);
 
       this.socket.once('data', async (data) => {
         try {
@@ -36,22 +40,22 @@ export class SmtpConnectionService {
           if (ehloResponse.includes('STARTTLS')) {
             await this.sendCommand(`STARTTLS`);
             // Step 3: Upgrade Connection to TLS
-            // // console.log('🔒 Upgrading to TLS...');
+            console.log('🔒 Upgrading to TLS...');
             const secureSocket = tls.connect(
               {
                 socket: this.socket,
-                port: 587,
+                port: this.tlsPort,
                 host: this.host,
-                minVersion: 'TLSv1', // Specify minimum TLS version
+                minVersion: this.tlsMinVersion, // Specify minimum TLS version
                 servername: this.host,
                 rejectUnauthorized: false, // Allow self-signed certificates
               },
               () => {
                 if (secureSocket.authorized) {
-                  // // console.log('Authorized');
+                  // console.log('Authorized');
                 }
                 if (secureSocket.encrypted) {
-                  // // console.log('✅ TLS secured. Ready to authenticate.');
+                  console.log('✅ TLS secured. Ready to authenticate.');
                   this.socket = secureSocket; // Replace with secure socket
 
                   this.socket.removeAllListeners('data');
@@ -64,12 +68,13 @@ export class SmtpConnectionService {
             );
             // This socket error handles if any issue when connecting to TLS
             secureSocket.once('error', (err) => {
-              // console.error('❌ TLS Upgrade Error:', err);
+              console.error('❌ TLS Upgrade Error:', err);
               const error: EmailStatusType = {
                 status: EmailStatus.INVALID,
                 reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
               };
               reject(error);
+              secureSocket.removeAllListeners();
               return;
             });
           }
@@ -92,12 +97,13 @@ export class SmtpConnectionService {
       // This socket error handles if any issue when connecting to email server
       // This usually means the mailbox is invalid
       this.socket.once('error', (err) => {
-        // console.error('❌ SMTP Connection Error:', err);
+        console.error('❌ SMTP Connection Error:', err);
         const error: EmailStatusType = {
           status: EmailStatus.INVALID,
           reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
         };
         reject(error);
+        this.socket.removeAllListeners();
         return;
       });
     });
@@ -106,13 +112,13 @@ export class SmtpConnectionService {
   private async sendCommand(command: string, email = ''): Promise<string> {
     return new Promise((resolve, reject) => {
       this.socket.write(command + '\r\n', 'utf-8', () => {
-        // console.debug(`➡ Sent: ${command}`);
+        console.debug(`➡ Sent: ${command}`);
       });
 
       let responseData = '';
       this.socket.once('data', (data) => {
         responseData = data.toString();
-        // console.debug(`⬅ Received: ${responseData}`);
+        console.debug(`⬅ Received: ${responseData}`);
         resolve(responseData);
         return;
       });
@@ -129,25 +135,27 @@ export class SmtpConnectionService {
         } else {
           reject(EmailReason.IP_BLOCKED);
         }
+        this.socket.removeAllListeners();
         return;
       });
 
       this.socket.once('error', (err) => {
         // console.log(err);
         // Log the error
-        // this.winstonLoggerService.error(`verifySmtp() error - ${email}`, JSON.stringify(err));
+        this.winstonLoggerService.error(`socket.once() error - ${email}`, JSON.stringify(err));
         // Detect if the connection is blocked
         if (err.message.includes('ECONNREFUSED') || err.message.includes('EHOSTUNREACH')) {
           reject(EmailReason.IP_BLOCKED);
         } else {
           reject(err.message);
         }
+        this.socket.removeAllListeners();
         return;
       });
 
       this.socket.once('timeout', () => {
         // Log the error
-        // this.winstonLoggerService.error(`verifySmtp() timeout - ${email}`, responseData);
+        this.winstonLoggerService.error(`socket.once() timeout - ${email}`, responseData);
         resolve(EmailReason.SMTP_TIMEOUT);
         return;
       });
@@ -219,7 +227,7 @@ export class SmtpConnectionService {
       data.includes(SMTPResponseCode.FIVE_00.smtp_code.toString())
     ) {
       let error: EmailStatusType = { reason: undefined, status: undefined };
-      // this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, data);
+      this.winstonLoggerService.error(`(500,556,505,551,550) - ${email}`, data);
 
       // Check if "data" has any of the strings from 'ipBlockedStringsArray'
       for (const str of ipBlockedStringsArray) {
@@ -251,7 +259,7 @@ export class SmtpConnectionService {
       if (data) {
         // Log the response
         if (!data.startsWith('2')) {
-          // this.winstonLoggerService.error(`parseSmtpResponseData() else - ${email}`, data);
+          this.winstonLoggerService.error(`parseSmtpResponseData() else - ${email}`, data);
         }
 
         if (data.startsWith(EmailReason.SMTP_TIMEOUT)) {

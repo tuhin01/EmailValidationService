@@ -496,7 +496,7 @@ export class DomainService {
       //   mxRecordHost,
       // );
 
-      const smtpService = new SmtpConnectionService();
+      const smtpService = new SmtpConnectionService(this.winstonLoggerService);
       await smtpService.connect(mxRecordHost);
       const smtpResponse: EmailStatusType = await smtpService.verifyEmail(email);
       // await this.smtpService.connect(mxRecordHost);
