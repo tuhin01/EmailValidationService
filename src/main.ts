@@ -35,6 +35,10 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ResponseSuccessInterceptor());
 
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Promise Rejection:', reason);
+  });
+
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 

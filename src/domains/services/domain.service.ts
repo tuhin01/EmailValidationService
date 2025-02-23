@@ -496,8 +496,15 @@ export class DomainService {
       //   mxRecordHost,
       // );
       console.log({ email });
-      const smtpService = new SmtpConnectionService(this.winstonLoggerService);
-      const smtpConnectionStatus: EmailStatusType = await smtpService.connect(mxRecordHost);
+      let smtpService;
+      let smtpConnectionStatus: EmailStatusType;
+      try {
+        smtpService = new SmtpConnectionService(this.winstonLoggerService);
+        smtpConnectionStatus = await smtpService.connect(mxRecordHost);
+      } catch (e) {
+        console.log('SMTP connection failed in domain service');
+        console.log({ e });
+      }
       // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
       // rejection occur, and it goes to catch block
       // If - User enabled verify+ and smtp response

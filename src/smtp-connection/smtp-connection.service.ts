@@ -20,7 +20,7 @@ export class SmtpConnectionService {
   private readonly socketEncoding: any = 'utf-8';
   private readonly port: number = 25;
   private readonly tlsPort: number = 587;
-  private readonly tlsMinVersion: any = 'TLSv1';
+  private readonly tlsMinVersion: any = 'TLSv1.2';
   private isSmtpSlow: boolean = false;
 
   constructor(
@@ -47,72 +47,74 @@ export class SmtpConnectionService {
             reject(ehloStatus);
             return;
           }
-          if (ehloResponse.includes('STARTTLS')) {
-            await this.sendCommand(`STARTTLS`);
-
-            // Step 3: Upgrade Connection to TLS
-            console.log('🔒 Upgrading to TLS...');
-            const secureSocket = tls.connect(
-              {
-                socket: this.socket,
-                port: this.tlsPort,
-                host: this.host,
-                timeout: this.socketTimeout,
-                minVersion: this.tlsMinVersion, // Specify minimum TLS version
-                servername: this.host,
-                rejectUnauthorized: false, // Allow self-signed certificates
-              },
-              () => {
-                if (secureSocket.authorized) {
-                  // console.log('Authorized');
-                }
-                if (secureSocket.encrypted) {
-                  console.log('✅ TLS secured. Ready to authenticate.');
-                  this.socket.removeAllListeners();
-                  // Replace with secure socket
-                  this.socket = secureSocket;
-                  resolve(true);
-                }
-              },
-            );
-            // This socket error handles if any issue when connecting to TLS
-            secureSocket.once('error', (err) => {
-              console.error('❌ TLS Upgrade Error:', err);
-              const error: EmailStatusType = {
-                status: EmailStatus.INVALID,
-                reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
-              };
-              reject(error);
-              // If STARTTLS is available but does not let us upgrade, we QUIT from it.
-              this.sendCommand(`QUIT`);
-              return;
-            });
-            secureSocket.once('close', () => {
-              console.log('secureSocket closed');
-              const error: EmailStatusType = {
-                status: EmailStatus.INVALID,
-                reason: EmailReason.MAILBOX_NOT_FOUND,
-              };
-              reject(error);
-              this.sendCommand(`QUIT`);
-              return;
-            });
-            secureSocket.once('timeout', () => {
-              console.log('secureSocket timeout');
-              const error: EmailStatusType = {
-                status: EmailStatus.UNKNOWN,
-                reason: EmailReason.SMTP_TIMEOUT,
-              };
-              resolve(error);
-              this.sendCommand(`QUIT`);
-              return;
-            });
-          } else {
+          if (!ehloResponse.includes('STARTTLS')) {
             // If ehloResponse not rejecting and does not have "STARTTLS" then we have to resolve()
             // here to continue using the unencrypted socket.
             console.error('❌ STARTTLS Not Found. Using regular socket');
             resolve(true);
+            return;
           }
+
+          await this.sendCommand(`STARTTLS`);
+
+          // Step 3: Upgrade Connection to TLS
+          console.log('🔒 Upgrading to TLS...');
+          const secureSocket = tls.connect(
+            {
+              socket: this.socket,
+              port: this.tlsPort,
+              host: this.host,
+              timeout: this.socketTimeout,
+              minVersion: this.tlsMinVersion, // Specify minimum TLS version
+              servername: this.host,
+              rejectUnauthorized: false, // Allow self-signed certificates
+            },
+            () => {
+              if (secureSocket.authorized) {
+                // console.log('Authorized');
+              }
+              if (secureSocket.encrypted) {
+                console.log('✅ TLS secured. Ready to authenticate.');
+                this.socket.removeAllListeners();
+                // Replace with secure socket
+                this.socket = secureSocket;
+                resolve(true);
+              }
+            },
+          );
+          // This socket error handles if any issue when connecting to TLS
+          secureSocket.once('error', (err) => {
+            console.error('❌ TLS Upgrade Error:', err);
+            const error: EmailStatusType = {
+              status: EmailStatus.INVALID,
+              reason: EmailReason.DOES_NOT_ACCEPT_MAIL,
+            };
+            reject(error);
+            // If STARTTLS is available but does not let us upgrade, we QUIT from it.
+            this.sendCommand(`QUIT`);
+            return;
+          });
+          secureSocket.once('close', () => {
+            console.log('secureSocket closed');
+            const error: EmailStatusType = {
+              status: EmailStatus.INVALID,
+              reason: EmailReason.MAILBOX_NOT_FOUND,
+            };
+            reject(error);
+            this.sendCommand(`QUIT`);
+            return;
+          });
+          secureSocket.once('timeout', () => {
+            console.log('secureSocket timeout');
+            const error: EmailStatusType = {
+              status: EmailStatus.UNKNOWN,
+              reason: EmailReason.SMTP_TIMEOUT,
+            };
+            resolve(error);
+            this.sendCommand(`QUIT`);
+            return;
+          });
+
         } catch (e) {
           // If "EHLO" command throw exception then it is caught here
           const emailStatus: EmailStatusType = { status: undefined, reason: undefined };
@@ -176,7 +178,19 @@ export class SmtpConnectionService {
 
     return new Promise((resolve, reject) => {
       try {
-        this.socket.write(command + '\r\n', 'utf-8', () => {
+        // Because of BottleNeck concurrency, sometime call stack calls a socket which
+        // was already closed previously. Doing this causes an error -
+        // Unhandled Promise Rejection: Error: write EPROTO
+        // To avoid such error. we check if the socket exist or not.
+        if (!this.socket || this.socket.destroyed || this.socket.closed) {
+          reject('Socket not found');
+          return;
+        }
+        this.socket.write(command + '\r\n', 'utf-8', (err: Error) => {
+          if (err) {
+            console.error('Socket write error:', err);
+            reject(err);
+          }
           console.debug(`➡ Sent: ${command}`);
         });
 
