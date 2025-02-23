@@ -10,15 +10,11 @@ import {
 
 import { AppModule } from './app.module';
 import { ResponseSuccessInterceptor } from './common/interceptors/response-success.interceptor';
-import { WinstonLoggerService } from '@/logger/winston-logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
-    // {
-    //   logger: new WinstonLoggerService(),
-    // },
   );
   // Register the multipart plugin
   await app.register(multipart);
