@@ -521,17 +521,15 @@ export class DomainService {
       }
 
       // Step - 6 : Check domain whois database to make sure everything is in good shape
-      if (
-        emailStatus.email_status === EmailStatus.VALID ||
-        emailStatus.email_status === EmailStatus.UNKNOWN ||
-        emailStatus.email_status === EmailStatus.CATCH_ALL
-      ) {
+      if (emailStatus.email_sub_status !== EmailReason.GREY_LISTED) {
         // const domainInfo: any = await this.getDomainAge(domain, dbDomain);
         // dbDomain.domain_age_days = domainInfo.domain_age_days;
         // await dbDomain.save();
 
         // emailStatus.domain_age_days = domainInfo.domain_age_days;
         emailStatus.retry = RetryStatus.COMPLETE;
+      } else {
+        emailStatus.retry = RetryStatus.PENDING;
       }
       await this.saveProcessedEmail(emailStatus, user, bulkFileId);
       // If everything goes well, then return the emailStatus
@@ -554,18 +552,17 @@ export class DomainService {
     smtpResponse: EmailStatusType,
     emailOldStatus: EmailValidationResponseType,
   ): Promise<EmailValidationResponseType> {
-    const emailStatus: EmailValidationResponseType = {
-      ...emailOldStatus,
-      verify_plus: true,
-    };
+    const emailStatus: EmailValidationResponseType = emailOldStatus;
     if (user.verify_plus && smtpResponse.reason === EmailReason.SMTP_TIMEOUT) {
       const verifyPlusResponse: EmailStatusType = await this.__sendVerifyPlusEmail(email);
       emailStatus.email_status = verifyPlusResponse.status;
       emailStatus.email_sub_status = verifyPlusResponse.reason;
+      emailStatus.verify_plus = true;
       return emailStatus;
     } else {
       emailStatus.email_status = smtpResponse.status;
       emailStatus.email_sub_status = smtpResponse.reason;
+      emailStatus.verify_plus = false;
       return emailStatus;
     }
   }

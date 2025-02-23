@@ -407,6 +407,9 @@ export class SchedulerService {
 
       for (let record of records) {
         const processedEmail: ProcessedEmail = await this.domainService.getProcessedEmail(record.Email);
+        if (!processedEmail) {
+          continue;
+        }
         // Delete these property so these are not included in the final response.
         delete processedEmail.id;
         delete processedEmail.user_id;
