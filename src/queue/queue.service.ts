@@ -71,10 +71,13 @@ export class QueueService {
         const allMxRecordHost: MXRecord[] = JSON.parse(domain.mx_record_hosts);
         const index = Math.floor(Math.random() * allMxRecordHost.length);
         const mxRecordHost = allMxRecordHost[index].exchange;
+        // Here we are not creating new instance of 'SmtpConnectionService' because,
+        // We run only 1 connection at a time through 'Bottleneck'. So we can reuse
+        // the same socket without crossing the max socket connection limit which is 10
         await this.smtpService.connect(mxRecordHost);
         emailStatus = await this.smtpService.verifyEmail(emailResponse.email_address);
       } catch (e) {
-        emailStatus = { ...e };
+        emailStatus = e;
         this.winstonLoggerService.error('Gray List Error', e);
       }
       // If email status is still GREY_LISTED then mark it invalid.

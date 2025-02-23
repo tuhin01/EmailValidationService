@@ -23,6 +23,9 @@ export class WebhookService {
         break;
       case 'Delivery':
         email = notification.delivery.recipients[0];
+        if(notification.delivery.smtpResponse.includes('queued')) {
+          return notification.delivery;
+        }
         emailStatus = {
           email_address: email,
           verify_plus: true,

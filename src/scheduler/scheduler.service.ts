@@ -66,13 +66,13 @@ export class SchedulerService {
         valid_email_count,
         invalid_email_count,
         unknown_count,
-        temporary_blocked,
+        grey_listed,
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
       } = await this.__saveValidationResultsInCsv(results, folderName);
       const bulkFileUpdateData: UpdateBulkFileDto = {
-        file_status: temporary_blocked > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
+        file_status: grey_listed > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
         validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
@@ -137,13 +137,12 @@ export class SchedulerService {
   public async generateBulkFileResultCsv(fileId: number) {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
     const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path);
-    console.log({ results });
     const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
     const {
       valid_email_count,
       invalid_email_count,
       unknown_count,
-      temporary_blocked,
+      grey_listed,
       catch_all_count,
       do_not_mail_count,
       spam_trap_count,
@@ -197,7 +196,7 @@ export class SchedulerService {
     let invalid_email_count = 0;
     let do_not_mail_count = 0;
     let unknown_count = 0;
-    let temporary_blocked = 0;
+    let grey_listed = 0;
     const fileWithStatusTypes = {
       [EmailReason.ROLE_BASED]: [],
       [EmailReason.UNVERIFIABLE_EMAIL]: [],
@@ -208,7 +207,7 @@ export class SchedulerService {
       [EmailReason.DOES_NOT_ACCEPT_MAIL]: [],
       [EmailReason.IP_BLOCKED]: [],
       [EmailStatus.CATCH_ALL]: [],
-      [EmailStatus.TEMPORARILY_UNAVAILABLE]: [],
+      [EmailStatus.GREY_LISTED]: [],
       [EmailStatus.SPAMTRAP]: [],
       [EmailStatus.VALID]: [],
     };
@@ -218,8 +217,8 @@ export class SchedulerService {
         fileWithStatusTypes[EmailStatus.VALID].push(email);
       } else if (email.email_status === EmailStatus.CATCH_ALL) {
         fileWithStatusTypes[EmailStatus.CATCH_ALL].push(email);
-      } else if (email.email_status === EmailStatus.TEMPORARILY_UNAVAILABLE) {
-        fileWithStatusTypes[EmailStatus.TEMPORARILY_UNAVAILABLE].push(email);
+      } else if (email.email_status === EmailStatus.GREY_LISTED) {
+        fileWithStatusTypes[EmailStatus.GREY_LISTED].push(email);
       } else if (email.email_status === EmailStatus.SPAMTRAP) {
         fileWithStatusTypes[EmailStatus.SPAMTRAP].push(email);
       } else if (email.email_sub_status === EmailReason.ROLE_BASED) {
@@ -254,9 +253,9 @@ export class SchedulerService {
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
       } else if (
-        email.email_sub_status === EmailReason.IP_BLOCKED
+        email.email_sub_status === EmailReason.GREY_LISTED
       ) {
-        temporary_blocked++;
+        grey_listed++;
       }
     });
 
@@ -283,7 +282,7 @@ export class SchedulerService {
       valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
       invalid_email_count,
       unknown_count,
-      temporary_blocked,
+      grey_listed,
       catch_all_count: fileWithStatusTypes[EmailStatus.CATCH_ALL].length,
       do_not_mail_count,
       spam_trap_count: fileWithStatusTypes[EmailStatus.SPAMTRAP].length,
@@ -358,19 +357,16 @@ export class SchedulerService {
             user,
             bulkFile.id,
           );
-          // console.log(`Validation done: ${validationResponse.email_address}`);
+
           // Add emails to GreyList check
-          if (
-            validationResponse.email_sub_status === EmailReason.GREY_LISTED
-          ) {
+          if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
             await this.queueService.addGreyListEmailToQueue(validationResponse);
           }
-          const res = {
+          console.log(`Complete ${validationResponse.email_address}`);
+          return {
             ...record,
             ...validationResponse,
           };
-          console.log(`Complete ${res.email_address}`);
-          return res;
         }),
       );
       // Wait for all validations to complete

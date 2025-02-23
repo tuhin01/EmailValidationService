@@ -128,7 +128,7 @@ export class DomainService {
     }
   }
 
-  async getInvalidProcessedEmail(email: string) {
+  async getCachedProcessedEmail(email: string) {
     const processedEmail: ProcessedEmail = await ProcessedEmail.findOneBy({
       email_address: email,
     });
@@ -409,9 +409,11 @@ export class DomainService {
       verify_plus: false,
     };
 
-    // Check if we processed the email today.
-    // If we did then just return the previous result
-    const processedEmail: ProcessedEmail = await this.getInvalidProcessedEmail(email);
+    // Check if we processed the email within allowed time/day and emails is
+    // VALID || CATCH_ALL || SPAMTRAP || DO_NOT_MAIL.
+    // If so, return the previous cached result.
+    // Otherwise, re-run the validation again
+    const processedEmail: ProcessedEmail = await this.getCachedProcessedEmail(email);
     if (processedEmail) {
       // Delete these property so these are not included in the final response.
       delete processedEmail.id;
@@ -502,7 +504,6 @@ export class DomainService {
         smtpService = new SmtpConnectionService(this.winstonLoggerService);
         smtpConnectionStatus = await smtpService.connect(mxRecordHost);
       } catch (e) {
-        console.log('SMTP connection failed in domain service');
         // e - is type of 'EmailStatusType' as we reject with
         // this type from SmtpConnectionService connect().
         // That's how we know we can assign 'e' to 'smtpConnectionStatus'

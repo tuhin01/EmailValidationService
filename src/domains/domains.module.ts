@@ -12,6 +12,7 @@ import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { MailerModule } from '@/mailer/mailer.module';
 import { ConfigModule } from '@nestjs/config';
 import { SmtpConnectionModule } from '@/smtp-connection/smtp-connection.module';
+import { UsersModule } from '@/users/users.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SmtpConnectionModule } from '@/smtp-connection/smtp-connection.module';
     ConfigModule,
     SmtpConnectionModule,
     WinstonLoggerModule,
+    UsersModule
   ],
   controllers: [DomainsController],
   providers: [DomainService],

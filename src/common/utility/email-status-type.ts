@@ -35,7 +35,7 @@ export enum EmailStatus {
   /** Domain does not exist or is unreachable */
   SERVICE_UNAVAILABLE = 'service_unavailable',
   /** mailbox unavailable (e.g., mailbox busy or temporarily blocked for policy reasons)*/
-  TEMPORARILY_UNAVAILABLE = 'service_temporarily_unavailable',
+  GREY_LISTED = 'grey_listed',
   /** The domain accepts all emails without validation */
   CATCH_ALL = 'catch-all',
   /** The email is a known spamtrap */
@@ -123,25 +123,25 @@ export const SMTPResponseCode = {
   },
   FOUR_51: {
     smtp_code: 451,
-    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    status: EmailStatus.GREY_LISTED,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_52: {
     smtp_code: 452,
-    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    status: EmailStatus.GREY_LISTED,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_50: {
     smtp_code: 450,
-    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    status: EmailStatus.GREY_LISTED,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_21: {
     smtp_code: 421,
-    status: EmailStatus.TEMPORARILY_UNAVAILABLE,
+    status: EmailStatus.GREY_LISTED,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
