@@ -206,8 +206,8 @@ export class SchedulerService {
       [EmailReason.SMTP_TIMEOUT]: [],
       [EmailReason.DOES_NOT_ACCEPT_MAIL]: [],
       [EmailReason.IP_BLOCKED]: [],
+      [EmailReason.GREY_LISTED]: [],
       [EmailStatus.CATCH_ALL]: [],
-      [EmailStatus.GREY_LISTED]: [],
       [EmailStatus.SPAMTRAP]: [],
       [EmailStatus.VALID]: [],
     };
@@ -217,8 +217,8 @@ export class SchedulerService {
         fileWithStatusTypes[EmailStatus.VALID].push(email);
       } else if (email.email_status === EmailStatus.CATCH_ALL) {
         fileWithStatusTypes[EmailStatus.CATCH_ALL].push(email);
-      } else if (email.email_status === EmailStatus.GREY_LISTED) {
-        fileWithStatusTypes[EmailStatus.GREY_LISTED].push(email);
+      } else if (email.email_sub_status === EmailReason.GREY_LISTED) {
+        fileWithStatusTypes[EmailReason.GREY_LISTED].push(email);
       } else if (email.email_status === EmailStatus.SPAMTRAP) {
         fileWithStatusTypes[EmailStatus.SPAMTRAP].push(email);
       } else if (email.email_sub_status === EmailReason.ROLE_BASED) {
@@ -253,6 +253,7 @@ export class SchedulerService {
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
       } else if (
+        email.email_status === EmailStatus.UNKNOWN &&
         email.email_sub_status === EmailReason.GREY_LISTED
       ) {
         grey_listed++;

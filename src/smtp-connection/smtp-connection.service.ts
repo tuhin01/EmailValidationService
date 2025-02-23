@@ -366,7 +366,7 @@ export class SmtpConnectionService {
 
       return SMTPResponseCode.FIVE_50;
     } else if (
-      // Detect Gray listing (Temporary Failures)
+      // Detect Grey listing (Temporary Failures)
       data.includes(SMTPResponseCode.FOUR_21.smtp_code.toString()) ||
       data.includes(SMTPResponseCode.FOUR_50.smtp_code.toString()) ||
       data.includes(SMTPResponseCode.FOUR_51.smtp_code.toString()) ||

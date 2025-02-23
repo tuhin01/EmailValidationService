@@ -34,8 +34,6 @@ export enum EmailStatus {
   INVALID_DOMAIN = 'invalid_domain',
   /** Domain does not exist or is unreachable */
   SERVICE_UNAVAILABLE = 'service_unavailable',
-  /** mailbox unavailable (e.g., mailbox busy or temporarily blocked for policy reasons)*/
-  GREY_LISTED = 'grey_listed',
   /** The domain accepts all emails without validation */
   CATCH_ALL = 'catch-all',
   /** The email is a known spamtrap */
@@ -50,13 +48,12 @@ export enum EmailStatus {
 export enum EmailReason {
   INVALID_EMAIL_FORMAT = 'invalid_email_format',
   DOMAIN_NOT_FOUND = 'domain_not_found',
-  DOMAIN_WHOIS_DATA_NOT_FOUND = 'domain_whois_data_not_found',
-  DOMAIN_WHOIS_PARSE_ERROR = 'domain_whois_data_parse_error',
   DOES_NOT_ACCEPT_MAIL = 'does_not_accept_mail',
   NO_MX_FOUND = 'mx_record_not_found',
   ROLE_BASED = 'role_based',
   IP_BLOCKED = 'ip_blocked',
-  GREY_LISTED = 'greylisted',
+  /** mailbox unavailable (e.g., mailbox busy or temporarily blocked for policy reasons)*/
+  GREY_LISTED = 'grey_listed',
   ALIAS = 'alias_or_forwarded_email',
   DISPOSABLE_DOMAIN = 'disposable_domain_temporary_email',
   POSSIBLE_TYPO = 'possible_typo',
@@ -123,25 +120,25 @@ export const SMTPResponseCode = {
   },
   FOUR_51: {
     smtp_code: 451,
-    status: EmailStatus.GREY_LISTED,
+    status: EmailStatus.UNKNOWN,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_52: {
     smtp_code: 452,
-    status: EmailStatus.GREY_LISTED,
+    status: EmailStatus.UNKNOWN,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_50: {
     smtp_code: 450,
-    status: EmailStatus.GREY_LISTED,
+    status: EmailStatus.UNKNOWN,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
   FOUR_21: {
     smtp_code: 421,
-    status: EmailStatus.GREY_LISTED,
+    status: EmailStatus.UNKNOWN,
     reason: EmailReason.GREY_LISTED,
     retry: true,
   },
