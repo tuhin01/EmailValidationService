@@ -245,16 +245,16 @@ export class SchedulerService {
       ) {
         invalid_email_count++;
       } else if (
-        email.email_status === EmailStatus.UNKNOWN ||
-        // Count "IP_BLOCKED" as unknown to report to user properly.
-        email.email_sub_status === EmailReason.IP_BLOCKED
+        // Count 'IP_BLOCKED', 'UNVERIFIABLE_EMAIL' & 'SMTP_TIMEOUT' as unknown to report to user properly.
+        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.UNVERIFIABLE_EMAIL) ||
+        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.SMTP_TIMEOUT) ||
+        (email.email_status === EmailStatus.SERVICE_UNAVAILABLE && email.email_sub_status === EmailReason.IP_BLOCKED)
       ) {
         unknown_count++;
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
       } else if (
-        email.email_status === EmailStatus.UNKNOWN &&
-        email.email_sub_status === EmailReason.GREY_LISTED
+        email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.GREY_LISTED
       ) {
         grey_listed++;
       }
@@ -278,7 +278,7 @@ export class SchedulerService {
       folderName + '/combined.csv',
     );
     console.log(`combined.csv created`);
-
+    console.log({ grey_listed });
     return {
       valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
       invalid_email_count,

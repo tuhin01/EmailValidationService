@@ -63,10 +63,10 @@ export class QueueService {
     const emails = [emailQueueData];
     console.log(emails);
 
-    const validationPromises: Promise<any>[] = emails.map((emailResponse: EmailValidationResponseType) => limiter.schedule(async () => {
-      console.log(`Gray Verify ${emailResponse.email_address} started`);
-      const domain: Domain = await this.domainService.findOne(emailResponse.domain);
-      let emailStatus: EmailStatusType;
+    const validationPromises: Promise<any>[] = emails.map((greyEmailRedisResponse: EmailValidationResponseType) => limiter.schedule(async () => {
+      console.log(`Gray Verify ${greyEmailRedisResponse.email_address} started`);
+      const domain: Domain = await this.domainService.findOne(greyEmailRedisResponse.domain);
+      let newEmailStatus: EmailStatusType;
       try {
         const allMxRecordHost: MXRecord[] = JSON.parse(domain.mx_record_hosts);
         const index = Math.floor(Math.random() * allMxRecordHost.length);
@@ -75,23 +75,24 @@ export class QueueService {
         // We run only 1 connection at a time through 'Bottleneck'. So we can reuse
         // the same socket without crossing the max socket connection limit which is 10
         await this.smtpService.connect(mxRecordHost);
-        emailStatus = await this.smtpService.verifyEmail(emailResponse.email_address);
+        newEmailStatus = await this.smtpService.verifyEmail(greyEmailRedisResponse.email_address);
       } catch (e) {
-        emailStatus = e;
+        newEmailStatus = e;
         this.winstonLoggerService.error('Gray List Error', e);
       }
       // If email status is still GREY_LISTED then mark it invalid.
-      if (emailStatus.reason === EmailReason.GREY_LISTED) {
-        emailStatus.status = EmailStatus.INVALID;
-        emailStatus.reason = EmailReason.MAILBOX_NOT_FOUND;
+      if (newEmailStatus.reason === EmailReason.GREY_LISTED) {
+        greyEmailRedisResponse.email_status = EmailStatus.INVALID;
+        greyEmailRedisResponse.email_sub_status = EmailReason.MAILBOX_NOT_FOUND;
       } else {
-        emailResponse.email_status = emailStatus.status;
-        emailResponse.email_sub_status = emailStatus.reason;
+        greyEmailRedisResponse.email_status = newEmailStatus.status;
+        greyEmailRedisResponse.email_sub_status = newEmailStatus.reason;
       }
-      emailResponse.retry = RetryStatus.COMPLETE;
-      await this.domainService.updateProcessedEmailByEmail(emailResponse.email_address, emailResponse);
+      console.log({ emailStatus: newEmailStatus });
+      greyEmailRedisResponse.retry = RetryStatus.COMPLETE;
+      await this.domainService.updateProcessedEmailByEmail(greyEmailRedisResponse.email_address, greyEmailRedisResponse);
 
-      return emailStatus;
+      return newEmailStatus;
     }));
 
     // Wait for all validations to complete
