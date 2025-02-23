@@ -496,14 +496,17 @@ export class DomainService {
       //   mxRecordHost,
       // );
       console.log({ email });
-      let smtpService;
+      let smtpService: SmtpConnectionService;
       let smtpConnectionStatus: EmailStatusType;
       try {
         smtpService = new SmtpConnectionService(this.winstonLoggerService);
         smtpConnectionStatus = await smtpService.connect(mxRecordHost);
       } catch (e) {
         console.log('SMTP connection failed in domain service');
-        console.log({ e });
+        // e - is type of 'EmailStatusType' as we reject with
+        // this type from SmtpConnectionService connect().
+        // That's how we know we can assign 'e' to 'smtpConnectionStatus'
+        smtpConnectionStatus = e;
       }
       // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
       // rejection occur, and it goes to catch block
@@ -538,7 +541,6 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-      console.log(emailStatus);
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
       return emailStatus;
@@ -592,7 +594,7 @@ export class DomainService {
     error: { reason: EmailReason; },
     email: string,
     user: User,
-    bulkFileId,
+    bulkFileId: number,
   ) {
     try {
       await this.saveProcessedEmail(emailStatus, user, bulkFileId);
@@ -621,10 +623,10 @@ export class DomainService {
         domain_error: error,
       };
       await this.createOrUpdateErrorDomain(errorDomain);
-    } catch (e) {
-      this.winstonLoggerService.error(`saveProcessedErrorEmail() - ${email}`, JSON.stringify(e));
+    } catch (err) {
+      this.winstonLoggerService.error(`saveProcessedErrorEmail() - ${email}`, err);
 
-      return e;
+      return err;
     }
   }
 }
