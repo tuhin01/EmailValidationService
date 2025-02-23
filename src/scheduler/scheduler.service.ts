@@ -89,7 +89,7 @@ export class SchedulerService {
 
       // Send email notification if the file status is complete
       if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-        // await this.__sendEmailNotification(user, firstPendingFile.id);
+        await this.__sendEmailNotification(user, firstPendingFile.id);
       }
 
       console.log('File Status updated to - COMPLETE');
@@ -131,7 +131,7 @@ export class SchedulerService {
       completeStatus,
     );
 
-    // await this.__sendEmailNotification(user, firstGreyListFile.id);
+    await this.__sendEmailNotification(user, firstGreyListFile.id);
   }
 
   public async generateBulkFileResultCsv(fileId: number) {
