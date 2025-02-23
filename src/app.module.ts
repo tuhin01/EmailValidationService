@@ -23,6 +23,7 @@ import { QueueModule } from './queue/queue.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SmtpConnectionModule } from './smtp-connection/smtp-connection.module';
+import { UnhandledRejection } from '@/common/exception-filter/unhandled-rejection.service';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { SmtpConnectionModule } from './smtp-connection/smtp-connection.module';
     },
     MailerService,
     WinstonLoggerService,
+    UnhandledRejection,
     {
       provide: APP_FILTER,
       useClass: GlobalExceptionFilter,
