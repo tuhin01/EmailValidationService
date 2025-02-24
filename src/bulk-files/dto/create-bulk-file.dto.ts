@@ -5,6 +5,10 @@ import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 export class CreateBulkFileDto {
   @IsString()
   @IsNotEmpty()
+  readonly file_original_name: string;
+
+  @IsString()
+  @IsNotEmpty()
   readonly file_path: string;
 
   @IsNumber()

@@ -63,6 +63,7 @@ export class BulkFilesController {
       // After saving the file locally, saveBulkFile it's location in DB
       const bulkFile: CreateBulkFileDto = {
         file_path: csvSavePath,
+        file_original_name: file.filename,
         user_id: req.user.id,
         total_email_count: isValid.total_emails,
         file_status: BulkFileStatus.PENDING,

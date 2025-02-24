@@ -24,6 +24,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SmtpConnectionModule } from './smtp-connection/smtp-connection.module';
 import { UnhandledRejection } from '@/common/exception-filter/unhandled-rejection.service';
+import { BulkFileEmailsModule } from './bulk-file-emails/bulk-file-emails.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { UnhandledRejection } from '@/common/exception-filter/unhandled-rejectio
     QueueModule,
     WebhookModule,
     SmtpConnectionModule,
+    BulkFileEmailsModule,
   ],
   controllers: [AppController],
   providers: [

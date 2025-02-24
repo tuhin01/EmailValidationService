@@ -22,6 +22,9 @@ export class BulkFile extends BaseEntity {
   @Column({ type: 'varchar', length: 255 })
   file_path: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  file_original_name: string;
+
   @Column({ type: 'int', nullable: true })
   user_id: number;
 
