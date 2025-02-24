@@ -168,4 +168,34 @@ export class BulkFilesService {
       });
     });
   }
+
+  async readCsvFile(csvPath: string): Promise<any> {
+    try {
+      // Read the CSV file
+      const data = await fs.promises.readFile(csvPath, 'utf8');
+
+      // Parse the CSV content
+      const records = await new Promise<any[]>((resolve, reject) => {
+        csv.parse(
+          data,
+          {
+            columns: true, // Convert rows to objects using the first row as keys
+            skip_empty_lines: true, // Ignore empty lines
+            trim: true, // Trim spaces from values
+          },
+          (err, records) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(records);
+            }
+          },
+        );
+      });
+    } catch (err) {
+      console.error('Error during bulk validation:', err);
+      throw err;
+    }
+
+  }
 }

@@ -304,77 +304,57 @@ export class SchedulerService {
 
     try {
       // Read the CSV file
-      const data = await fs.promises.readFile(csvPath, 'utf8');
+      const records = await this.bulkFilesService.readCsvFile(csvPath);
 
-      // Parse the CSV content
-      const records = await new Promise<any[]>((resolve, reject) => {
-        parse(
-          data,
-          {
-            columns: true, // Convert rows to objects using the first row as keys
-            skip_empty_lines: true, // Ignore empty lines
-            trim: true, // Trim spaces from values
-          },
-          (err, records) => {
-            if (err) {
-              reject(err);
-            } else {
-              csvHeaders = records[0];
-              resolve(records);
-            }
-          },
-        );
-      });
-
-      const results = [];
-      for (const record of records) {
-        console.log(`Validation started: ${record.Email}`);
-        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-          record.Email,
-          user,
-          bulkFile.id,
-        );
-        // console.log(`Validation done: ${validationResponse.email_address}`);
-        // Add emails to GreyList check
-        if (
-          validationResponse.email_sub_status === EmailReason.GREY_LISTED
-        ) {
-          await this.queueService.addGreyListEmailToQueue(validationResponse);
-        }
-        const res = {
-          ...record,
-          ...validationResponse,
-        };
-        results.push(res);
-      }
-      return results;
+      // const results = [];
+      // for (const record of records) {
+      //   console.log(`Validation started: ${record.Email}`);
+      //   const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+      //     record.Email,
+      //     user,
+      //     bulkFile.id,
+      //   );
+      //   // console.log(`Validation done: ${validationResponse.email_address}`);
+      //   // Add emails to GreyList check
+      //   if (
+      //     validationResponse.email_sub_status === EmailReason.GREY_LISTED
+      //   ) {
+      //     await this.queueService.addGreyListEmailToQueue(validationResponse);
+      //   }
+      //   const res = {
+      //     ...record,
+      //     ...validationResponse,
+      //   };
+      //   results.push(res);
+      // }
+      // return results;
 
 
       // Validate emails in parallel
-      // const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-      //     console.log(`Validation started: ${record.Email}`);
-      //     const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-      //       record.Email,
-      //       user,
-      //       bulkFile.id,
-      //     );
-      //
-      //     // Add emails to GreyList check
-      //     if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
-      //       await this.queueService.addGreyListEmailToQueue(validationResponse);
-      //     }
-      //     console.log(`Complete ${validationResponse.email_address}`);
-      //     return {
-      //       ...record,
-      //       ...validationResponse,
-      //     };
-      //   }),
-      // );
+      const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
+          console.log(`Validation started: ${record.Email}`);
+          const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+            record.Email,
+            user,
+            bulkFile.id,
+          );
+
+          // Add emails to GreyList check
+          if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
+            await this.queueService.addGreyListEmailToQueue(validationResponse);
+          }
+          console.log(`Complete ${validationResponse.email_address}`);
+          return {
+            ...record,
+            ...validationResponse,
+          };
+        }),
+      );
       // Wait for all validations to complete
-      // const results = await Promise.allSettled(validationPromises);
-      // return results
-      //   .filter(result => result.status === 'fulfilled')
-      //   .map(result => (result as PromiseFulfilledResult<any>).value);
+      const results = await Promise.allSettled(validationPromises);
+      return results
+        .filter(result => result.status === 'fulfilled')
+        .map(result => (result as PromiseFulfilledResult<any>).value);
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;
@@ -383,27 +363,7 @@ export class SchedulerService {
 
   private async __readSCsvAndMergeValidationResults(csvPath: string) {
     try {
-      // Read the CSV file
-      const data = await fs.promises.readFile(csvPath, 'utf8');
-
-      // Parse the CSV content
-      const records = await new Promise<any[]>((resolve, reject) => {
-        parse(
-          data,
-          {
-            columns: true, // Convert rows to objects using the first row as keys
-            skip_empty_lines: true, // Ignore empty lines
-            trim: true, // Trim spaces from values
-          },
-          (err, records) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve(records);
-            }
-          },
-        );
-      });
+      const records = await this.bulkFilesService.readCsvFile(csvPath);
 
       for (let record of records) {
         const processedEmail: ProcessedEmail = await this.domainService.getProcessedEmail(record.Email);

@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 
 export enum BulkFileStatus {
+  QUEUED = 'queued',
   PENDING = 'pending',
   PROCESSING = 'processing',
   COMPLETE = 'complete',

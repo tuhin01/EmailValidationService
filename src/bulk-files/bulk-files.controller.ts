@@ -16,11 +16,12 @@ import { FastifyRequest } from 'fastify';
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
-import { BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
+import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 
 @Controller('bulk-files')
 export class BulkFilesController {
-  constructor(private readonly bulkFilesService: BulkFilesService) {}
+  constructor(private readonly bulkFilesService: BulkFilesService) {
+  }
 
   @Throttle({
     default: { limit: 500, ttl: minutes(1), blockDuration: minutes(1) },
@@ -66,7 +67,7 @@ export class BulkFilesController {
         file_original_name: file.filename,
         user_id: req.user.id,
         total_email_count: isValid.total_emails,
-        file_status: BulkFileStatus.PENDING,
+        file_status: BulkFileStatus.QUEUED,
         valid_email_count: null,
         catch_all_count: null,
         invalid_email_count: null,
@@ -75,7 +76,7 @@ export class BulkFilesController {
         spam_trap_count: null,
         validation_file_path: null,
       };
-      await this.bulkFilesService.saveBulkFile(bulkFile);
+      const dbBulkFile: BulkFile = await this.bulkFilesService.saveBulkFile(bulkFile);
 
       return {
         message: 'File uploaded successfully!',
