@@ -29,7 +29,7 @@ export class QueueService {
     private readonly mailerService: MailerService,
     private readonly domainService: DomainService,
     private readonly smtpService: SmtpConnectionService,
-    // private readonly bulkFileEmailsService: BulkFileEmailsService,
+    private readonly bulkFileEmailsService: BulkFileEmailsService,
     private readonly winstonLoggerService: WinstonLoggerService,
     @InjectQueue(QUEUE) private readonly queue: Queue,
   ) {
@@ -118,7 +118,7 @@ export class QueueService {
   }
 
   async saveBulkFileEmails(bulkFile: BulkFile) {
-    // await this.bulkFileEmailsService.saveBulkFileEmails(bulkFile);
+    await this.bulkFileEmailsService.saveBulkFileEmails(bulkFile);
   }
 
 }

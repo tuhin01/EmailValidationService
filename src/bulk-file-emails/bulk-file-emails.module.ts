@@ -8,5 +8,7 @@ import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entit
     TypeOrmModule.forFeature([BulkFileEmail]),
   ],
   providers: [BulkFileEmailsService],
+  exports: [BulkFileEmailsService],
 })
-export class BulkFileEmailsModule {}
+export class BulkFileEmailsModule {
+}
