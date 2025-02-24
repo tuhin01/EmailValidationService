@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as csv from 'csv-parse';
 import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
 import { DataSource } from 'typeorm';
+import { Domain } from '@/domains/entities/domain.entity';
 
 @Injectable()
 export class BulkFileEmailsService {
@@ -11,6 +12,10 @@ export class BulkFileEmailsService {
   constructor(
     private dataSource: DataSource,
   ) {
+  }
+
+  async findBulkFileEmails(bulkFileId: number): Promise<BulkFileEmail[]> {
+    return BulkFileEmail.findBy({ bulk_file_id: bulkFileId });
   }
 
   async saveBulkFileEmails(bulkFile: BulkFile) {

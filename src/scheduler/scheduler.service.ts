@@ -1,8 +1,5 @@
-import * as fs from 'node:fs';
-
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { parse } from 'csv-parse';
 
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
@@ -23,12 +20,15 @@ import * as path from 'path';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { QueueService } from '@/queue/queue.service';
 import { Attachment } from 'nodemailer/lib/mailer';
+import { BulkFileEmailsService } from '@/bulk-file-emails/bulk-file-emails.service';
+import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
 
 @Injectable()
 export class SchedulerService {
 
   constructor(
     private bulkFilesService: BulkFilesService,
+    private bulkFileEmailsService: BulkFileEmailsService,
     private domainService: DomainService,
     private userService: UsersService,
     private queueService: QueueService,
@@ -100,7 +100,7 @@ export class SchedulerService {
     }
   }
 
-  @Cron('1 * * * * *') // Runs every minutes
+  // @Cron('1 * * * * *') // Runs every minutes
   public async runGreyListEmailValidation() {
     const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
     console.log({ grayListFile: greyListFile });
@@ -263,6 +263,7 @@ export class SchedulerService {
     for (const fileType of Object.keys(fileWithStatusTypes)) {
       const fileName = folderName + '/' + fileType + '.csv';
       const csvData: [] = fileWithStatusTypes[fileType];
+      console.log({ csvData });
       if (csvData.length) {
         await this.bulkFilesService.generateCsv(
           csvData,
@@ -291,8 +292,7 @@ export class SchedulerService {
   }
 
   private async __bulkValidate(bulkFile: BulkFile, user: User): Promise<any[]> {
-    const csvPath = bulkFile.file_path;
-    if (!csvPath) {
+    if (!bulkFile.file_path) {
       throw new Error('No file path provided');
     }
     let csvHeaders = [];
@@ -303,8 +303,9 @@ export class SchedulerService {
     });
 
     try {
-      // Read the CSV file
-      const records = await this.bulkFilesService.readCsvFile(csvPath);
+      const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(bulkFile.id);
+      const records = await this.bulkFilesService.readCsvFile(bulkFile.file_path);
+      console.log({ records });
 
       // const results = [];
       // for (const record of records) {
@@ -331,10 +332,10 @@ export class SchedulerService {
 
 
       // Validate emails in parallel
-      const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-          console.log(`Validation started: ${record.Email}`);
+      const validationPromises: Promise<any>[] = bulkFileEmails.map((bulkFileEmail) => limiter.schedule(async () => {
+          console.log(`Validation started: ${bulkFileEmail.email_address}`);
           const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-            record.Email,
+            bulkFileEmail.email_address,
             user,
             bulkFile.id,
           );
@@ -344,6 +345,8 @@ export class SchedulerService {
             await this.queueService.addGreyListEmailToQueue(validationResponse);
           }
           console.log(`Complete ${validationResponse.email_address}`);
+          const record = records.find(r => r.Email === bulkFileEmail.email_address);
+          console.log({ record });
           return {
             ...record,
             ...validationResponse,
