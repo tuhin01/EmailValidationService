@@ -13,7 +13,7 @@ import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
 @Processor(QUEUE)
 export class QueueProcessor {
   constructor(
-    private readonly queueService: QueueService,
+    private readonly queueService: QueueService
   ) {
   }
 
@@ -34,7 +34,7 @@ export class QueueProcessor {
   @Process(PROCESS_BULK_FILE_QUEUE)
   async handleBulkFileQueueTask(job: Job<BulkFile>) {
     console.log('Processing Queue:', job.data);
-    // return this.queueService.runGrayListCheck(job.data);
+    return this.queueService.saveBulkFileEmails(job.data);
   }
 
 }

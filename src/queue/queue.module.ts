@@ -10,6 +10,7 @@ import { MailerModule } from '@/mailer/mailer.module';
 import { DomainsModule } from '@/domains/domains.module';
 import { WinstonLoggerModule } from '@/logger/winston-logger.module';
 import { SmtpConnectionModule } from '@/smtp-connection/smtp-connection.module';
+import { BulkFileEmailsModule } from '@/bulk-file-emails/bulk-file-emails.module';
 
 config(); // Load .env file into process.env
 
@@ -27,8 +28,9 @@ config(); // Load .env file into process.env
     }),
     MailerModule,
     DomainsModule,
+    BulkFileEmailsModule,
     SmtpConnectionModule,
-    WinstonLoggerModule
+    WinstonLoggerModule,
   ],
   providers: [QueueService, QueueProcessor],
   exports: [QueueService, BullModule],

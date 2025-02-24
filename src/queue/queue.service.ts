@@ -21,6 +21,7 @@ import { RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
+import { BulkFileEmailsService } from '@/bulk-file-emails/bulk-file-emails.service';
 
 @Injectable()
 export class QueueService {
@@ -28,6 +29,7 @@ export class QueueService {
     private readonly mailerService: MailerService,
     private readonly domainService: DomainService,
     private readonly smtpService: SmtpConnectionService,
+    // private readonly bulkFileEmailsService: BulkFileEmailsService,
     private readonly winstonLoggerService: WinstonLoggerService,
     @InjectQueue(QUEUE) private readonly queue: Queue,
   ) {
@@ -113,6 +115,10 @@ export class QueueService {
     // Wait for all validations to complete
     await Promise.allSettled(validationPromises);
 
+  }
+
+  async saveBulkFileEmails(bulkFile: BulkFile) {
+    // await this.bulkFileEmailsService.saveBulkFileEmails(bulkFile);
   }
 
 }
