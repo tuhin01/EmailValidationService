@@ -7,5 +7,6 @@ export const PROCESSED_EMAIL_CHECK_DAY_GAP = 0;
 export const GRAY_LIST_MINUTE_GAP = 15;
 export const SMTP_RESPONSE_MAX_DELAY = 3000;
 export const PROCESS_EMAIL_SEND_QUEUE = 'sendEmail';
-export const GREY_LIST_QUEUE = 'greyListQueue';
+export const QUEUE = 'emailVerificationQueue';
 export const PROCESS_GREY_LIST_QUEUE = 'processGreyListQueue';
+export const PROCESS_BULK_FILE_QUEUE = 'processBulkFileQueue';

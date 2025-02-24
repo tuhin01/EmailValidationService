@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
-import { GREY_LIST_QUEUE, PROCESS_EMAIL_SEND_QUEUE, PROCESS_GREY_LIST_QUEUE } from '@/common/utility/constant';
+import {
+  QUEUE,
+  PROCESS_BULK_FILE_QUEUE,
+  PROCESS_EMAIL_SEND_QUEUE,
+  PROCESS_GREY_LIST_QUEUE,
+} from '@/common/utility/constant';
 import { MailerService } from '@/mailer/mailer.service';
 import {
   EmailReason,
@@ -15,6 +20,7 @@ import { DomainService } from '@/domains/services/domain.service';
 import { RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
+import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
 
 @Injectable()
 export class QueueService {
@@ -23,7 +29,7 @@ export class QueueService {
     private readonly domainService: DomainService,
     private readonly smtpService: SmtpConnectionService,
     private readonly winstonLoggerService: WinstonLoggerService,
-    @InjectQueue(GREY_LIST_QUEUE) private readonly queue: Queue,
+    @InjectQueue(QUEUE) private readonly queue: Queue,
   ) {
   }
 
@@ -41,6 +47,15 @@ export class QueueService {
       removeOnComplete: true, // Automatically delete job after processing
     };
     await this.queue.add(PROCESS_GREY_LIST_QUEUE, emailSmtpResponse, jobOptions);
+  }
+
+  async addBulkFileToQueue(bulkFile: BulkFile) {
+    const jobOptions: JobOptions = {
+      attempts: 1, // Retry 3 times if failed
+      delay: 0,
+      removeOnComplete: true, // Automatically delete job after processing
+    };
+    await this.queue.add(PROCESS_BULK_FILE_QUEUE, bulkFile, jobOptions);
   }
 
   async addEmailToQueue(data: any) {

@@ -1,10 +1,16 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
-import { PROCESS_EMAIL_SEND_QUEUE, PROCESS_GREY_LIST_QUEUE, GREY_LIST_QUEUE } from '@/common/utility/constant';
+import {
+  PROCESS_EMAIL_SEND_QUEUE,
+  PROCESS_GREY_LIST_QUEUE,
+  QUEUE,
+  PROCESS_BULK_FILE_QUEUE,
+} from '@/common/utility/constant';
 import { QueueService } from '@/queue/queue.service';
 import { EmailValidationResponseType } from '@/common/utility/email-status-type';
+import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
 
-@Processor(GREY_LIST_QUEUE)
+@Processor(QUEUE)
 export class QueueProcessor {
   constructor(
     private readonly queueService: QueueService,
@@ -23,6 +29,12 @@ export class QueueProcessor {
     const emailResponse = await this.queueService.processEmailQueue(job.data);
     console.log(emailResponse);
     return emailResponse;
+  }
+
+  @Process(PROCESS_BULK_FILE_QUEUE)
+  async handleBulkFileQueueTask(job: Job<BulkFile>) {
+    console.log('Processing Queue:', job.data);
+    // return this.queueService.runGrayListCheck(job.data);
   }
 
 }

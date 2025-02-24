@@ -17,10 +17,14 @@ import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
+import { QueueService } from '@/queue/queue.service';
 
 @Controller('bulk-files')
 export class BulkFilesController {
-  constructor(private readonly bulkFilesService: BulkFilesService) {
+  constructor(
+    private readonly bulkFilesService: BulkFilesService,
+    private readonly queueService: QueueService,
+  ) {
   }
 
   @Throttle({
@@ -77,6 +81,9 @@ export class BulkFilesController {
         validation_file_path: null,
       };
       const dbBulkFile: BulkFile = await this.bulkFilesService.saveBulkFile(bulkFile);
+
+      // Add the file to the Queue to process and save to 'BulkFileEmails' table
+      await this.queueService.addBulkFileToQueue(dbBulkFile);
 
       return {
         message: 'File uploaded successfully!',
