@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
+import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import * as fs from 'fs';
 import * as csv from 'csv-parse';
 import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
@@ -38,6 +38,8 @@ export class BulkFileEmailsService {
       // you need to release a queryRunner which was manually instantiated
       await queryRunner.release();
     }
+
+    await BulkFile.update(bulkFile.id, { ...bulkFile, file_status: BulkFileStatus.PENDING });
 
   }
 
