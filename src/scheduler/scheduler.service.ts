@@ -326,55 +326,55 @@ export class SchedulerService {
         );
       });
 
-      // const results = [];
-      // for (const record of records) {
-      //   console.log(`Validation started: ${record.Email}`);
-      //   const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-      //     record.Email,
-      //     user,
-      //     bulkFile.id,
-      //   );
-      //   // console.log(`Validation done: ${validationResponse.email_address}`);
-      //   // Add emails to GreyList check
-      //   if (
-      //     validationResponse.email_sub_status === EmailReason.GREY_LISTED
-      //   ) {
-      //     await this.queueService.addGreyListEmailToQueue(validationResponse);
-      //   }
-      //   const res = {
-      //     ...record,
-      //     ...validationResponse,
-      //   };
-      //   results.push(res);
-      // }
-      // return results;
+      const results = [];
+      for (const record of records) {
+        console.log(`Validation started: ${record.Email}`);
+        const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+          record.Email,
+          user,
+          bulkFile.id,
+        );
+        // console.log(`Validation done: ${validationResponse.email_address}`);
+        // Add emails to GreyList check
+        if (
+          validationResponse.email_sub_status === EmailReason.GREY_LISTED
+        ) {
+          await this.queueService.addGreyListEmailToQueue(validationResponse);
+        }
+        const res = {
+          ...record,
+          ...validationResponse,
+        };
+        results.push(res);
+      }
+      return results;
 
 
       // Validate emails in parallel
-      const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
-          console.log(`Validation started: ${record.Email}`);
-          const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-            record.Email,
-            user,
-            bulkFile.id,
-          );
-
-          // Add emails to GreyList check
-          if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
-            await this.queueService.addGreyListEmailToQueue(validationResponse);
-          }
-          console.log(`Complete ${validationResponse.email_address}`);
-          return {
-            ...record,
-            ...validationResponse,
-          };
-        }),
-      );
+      // const validationPromises: Promise<any>[] = records.map((record) => limiter.schedule(async () => {
+      //     console.log(`Validation started: ${record.Email}`);
+      //     const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+      //       record.Email,
+      //       user,
+      //       bulkFile.id,
+      //     );
+      //
+      //     // Add emails to GreyList check
+      //     if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
+      //       await this.queueService.addGreyListEmailToQueue(validationResponse);
+      //     }
+      //     console.log(`Complete ${validationResponse.email_address}`);
+      //     return {
+      //       ...record,
+      //       ...validationResponse,
+      //     };
+      //   }),
+      // );
       // Wait for all validations to complete
-      const results = await Promise.allSettled(validationPromises);
-      return results
-        .filter(result => result.status === 'fulfilled')
-        .map(result => (result as PromiseFulfilledResult<any>).value);
+      // const results = await Promise.allSettled(validationPromises);
+      // return results
+      //   .filter(result => result.status === 'fulfilled')
+      //   .map(result => (result as PromiseFulfilledResult<any>).value);
     } catch (err) {
       console.error('Error during bulk validation:', err);
       throw err;

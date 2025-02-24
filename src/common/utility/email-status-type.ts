@@ -94,6 +94,12 @@ export const SMTPResponseCode = {
     reason: EmailReason.MAILBOX_NOT_FOUND,
     retry: false,
   },
+  FIVE_21: {
+    smtp_code: 521,
+    status: EmailStatus.INVALID,
+    reason: EmailReason.MAILBOX_NOT_FOUND,
+    retry: false,
+  },
   FIVE_00: {
     smtp_code: 500,
     status: EmailStatus.INVALID,
@@ -156,6 +162,7 @@ export const ipBlockedStringsArray = [
   'Spamhaus',
   'cannot find your reverse hostname',
   'spamhaus',
+  'Protocol error',
   'Command rejected',
   'banned sending IP',
 ];

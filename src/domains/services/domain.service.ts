@@ -500,15 +500,15 @@ export class DomainService {
       console.log({ email });
       let smtpService: SmtpConnectionService;
       let smtpConnectionStatus: EmailStatusType;
-      try {
+      // try {
         smtpService = new SmtpConnectionService(this.winstonLoggerService);
         smtpConnectionStatus = await smtpService.connect(mxRecordHost);
-      } catch (e) {
+      // } catch (e) {
         // e - is type of 'EmailStatusType' as we reject with
         // this type from SmtpConnectionService connect().
         // That's how we know we can assign 'e' to 'smtpConnectionStatus'
-        smtpConnectionStatus = e;
-      }
+        // smtpConnectionStatus = e;
+      // }
       // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
       // rejection occur, and it goes to catch block
       // If - User enabled verify+ and smtp response

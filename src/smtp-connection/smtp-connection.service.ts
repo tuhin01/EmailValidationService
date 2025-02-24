@@ -347,6 +347,7 @@ export class SmtpConnectionService {
       return SMTPResponseCode.TWO_51;
     } else if (
       data.includes(SMTPResponseCode.FIVE_50.smtp_code.toString()) ||
+      data.includes(SMTPResponseCode.FIVE_21.smtp_code.toString()) ||
       data.includes(SMTPResponseCode.FIVE_56.smtp_code.toString()) ||
       data.includes(SMTPResponseCode.FIVE_05.smtp_code.toString()) ||
       data.includes(SMTPResponseCode.FIVE_51.smtp_code.toString()) ||
