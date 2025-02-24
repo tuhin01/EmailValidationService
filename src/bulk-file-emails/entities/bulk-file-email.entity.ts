@@ -17,6 +17,6 @@ export class BulkFileEmail extends BaseEntity {
   email_address: string;
 
   @CreateDateColumn({ type: 'timestamptz' })
-  created_at: Date;
+  created_at?: Date;
 
 }

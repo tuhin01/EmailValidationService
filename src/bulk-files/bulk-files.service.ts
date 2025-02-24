@@ -175,7 +175,7 @@ export class BulkFilesService {
       const data = await fs.promises.readFile(csvPath, 'utf8');
 
       // Parse the CSV content
-      const records = await new Promise<any[]>((resolve, reject) => {
+      await new Promise<any[]>((resolve, reject) => {
         csv.parse(
           data,
           {
