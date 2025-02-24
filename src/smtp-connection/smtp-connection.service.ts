@@ -124,6 +124,9 @@ export class SmtpConnectionService {
           } else if (e === EmailReason.DOES_NOT_ACCEPT_MAIL) {
             emailStatus.status = EmailStatus.INVALID;
             emailStatus.reason = EmailReason.DOES_NOT_ACCEPT_MAIL;
+          } else if (e === EmailReason.GREY_LISTED) {
+            emailStatus.status = EmailStatus.UNKNOWN;
+            emailStatus.reason = EmailReason.GREY_LISTED;
           } else {
             emailStatus.status = EmailStatus.INVALID;
             emailStatus.reason = e;
@@ -182,8 +185,9 @@ export class SmtpConnectionService {
         // was already closed previously. Doing this causes an error -
         // Unhandled Promise Rejection: Error: write EPROTO
         // To avoid such error. we check if the socket exist or not.
+        // If it does then we add these to 'GREY_LISTED' queue to re-check
         if (!this.socket || this.socket.destroyed || this.socket.closed) {
-          reject('Socket not found');
+          reject(EmailReason.GREY_LISTED);
           return;
         }
         this.socket.write(command + '\r\n', 'utf-8', (err: Error) => {
@@ -314,7 +318,6 @@ export class SmtpConnectionService {
         resolve(emailStatus);
         await this.sendCommand(`QUIT`);
       } catch (e) {
-        // console.log({ e });
         if (typeof e === 'string') {
           if (e === EmailReason.SMTP_TIMEOUT) {
             const error: EmailStatusType = {
@@ -322,6 +325,13 @@ export class SmtpConnectionService {
               reason: EmailReason.SMTP_TIMEOUT,
             };
             resolve(error);
+            return;
+          } else if(e === EmailReason.SOCKET_NOT_FOUND) {
+            const error: EmailStatusType = {
+              status: EmailStatus.UNKNOWN,
+              reason: EmailReason.GREY_LISTED,
+            };
+            reject(error);
             return;
           }
         }

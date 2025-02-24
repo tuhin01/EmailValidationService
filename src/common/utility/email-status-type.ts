@@ -60,6 +60,7 @@ export enum EmailReason {
   MAILBOX_NOT_FOUND = 'mailbox_not_found',
   UNVERIFIABLE_EMAIL = 'unverifiable_email',
   SMTP_TIMEOUT = 'smtp_connection_timeout',
+  SOCKET_NOT_FOUND = 'socket_not_found',
   EMPTY = '',
 }
 

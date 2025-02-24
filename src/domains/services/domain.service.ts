@@ -540,6 +540,10 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
+
+      if(emailStatus.email_sub_status === EmailReason.SOCKET_NOT_FOUND) {
+
+      }
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
       return emailStatus;
