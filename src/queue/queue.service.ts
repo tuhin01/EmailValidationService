@@ -45,7 +45,7 @@ export class QueueService {
   async addGreyListEmailToQueue(emailSmtpResponses: EmailValidationResponseType[], bulkFile: BulkFile) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
-      delay: 15 * 60 * 1000, // delay for 15 minutes
+      delay: 1 * 60 * 1000, // delay for 15 minutes
       removeOnComplete: true, // Automatically delete job after processing
     };
     const jobData = {
@@ -122,8 +122,9 @@ export class QueueService {
     await Promise.allSettled(validationPromises);
     console.log('Updating bulk file status');
     // TODO - Update file status in BulkFile
-    bulkFile.file_status = BulkFileStatus.GREY_LIST_CHECK_DONE;
-    await bulkFile.save();
+    const dbBulkFile = await BulkFile.findOneBy({ id: bulkFile.id });
+    dbBulkFile.file_status = BulkFileStatus.GREY_LIST_CHECK_DONE;
+    await dbBulkFile.save();
     console.log(`Bulk file status updated for ${bulkFile.id}`);
   }
 

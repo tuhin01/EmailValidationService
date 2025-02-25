@@ -15,8 +15,6 @@ import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import Bottleneck from 'bottleneck';
 import { UsersService } from '@/users/users.service';
 import { User } from '@/users/entities/user.entity';
-import * as process from 'node:process';
-import * as path from 'path';
 import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
 import { QueueService } from '@/queue/queue.service';
 import { Attachment } from 'nodemailer/lib/mailer';
@@ -65,8 +63,8 @@ export class SchedulerService {
           greyListEmails.push(result);
         }
       }
-      if(greyListEmails.length) {
-        console.log("Adding to Grey list");
+      if (greyListEmails.length) {
+        console.log('Adding to Grey list');
         await this.queueService.addGreyListEmailToQueue(greyListEmails, firstPendingFile);
       }
       // const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
@@ -81,7 +79,7 @@ export class SchedulerService {
         spam_trap_count,
       } = this.__getValidationsByTypes(results);
       const bulkFileUpdateData: UpdateBulkFileDto = {
-        file_status: greyListEmails.length > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
+        file_status: greyListEmails.length > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.GREY_LIST_CHECK_DONE,
         // validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
@@ -101,7 +99,7 @@ export class SchedulerService {
       //   await this.__sendEmailNotification(user, firstPendingFile.id);
       // }
 
-      console.log('File Status updated to - COMPLETE');
+      // console.log('File Status updated to - COMPLETE');
 
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
@@ -110,7 +108,7 @@ export class SchedulerService {
   }
 
   // @Cron('1 * * * * *') // Runs every minutes
-  public async runGreyListEmailValidation() {
+  public async generateCsvAndSendEmailForGreyListCheckedFiles() {
     const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
     console.log({ grayListFile: greyListFile });
     if (!greyListFile.length) {
@@ -124,15 +122,21 @@ export class SchedulerService {
       return;
     }
 
-    const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(firstGreyListFile.id);
-
-    const processedEmails: ProcessedEmail[] = await this.domainService.getGreyListedProcessedEmail(firstGreyListFile.id);
-    if (processedEmails.length) {
-      return;
-    }
+    // const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(firstGreyListFile.id);
+    // const processedEmails: ProcessedEmail[] = [];
+    // if(bulkFileEmails.length) {
+    //   for (const bulkFileEmail of bulkFileEmails) {
+    //     const processedEmail: ProcessedEmail = await this.domainService.getProcessedEmail(bulkFileEmail.email_address);
+    //     processedEmails.push(processedEmail);
+    //   }
+    // }
+    // const processedEmails: ProcessedEmail[] = await this.domainService.getGreyListedProcessedEmail(firstGreyListFile.id);
+    // if (processedEmails.length) {
+    //   return;
+    // }
     console.log('GreyList is in progress...');
     // Generate all csv and update DB with updated counts.
-    await this.generateBulkFileResultCsv(firstGreyListFile.id);
+    await this.__generateBulkFileResultCsv(firstGreyListFile.id);
 
     let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
@@ -145,21 +149,22 @@ export class SchedulerService {
     await this.__sendEmailNotification(user, firstGreyListFile.id);
   }
 
-  public async generateBulkFileResultCsv(fileId: number) {
+  private async __generateBulkFileResultCsv(fileId: number) {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
     const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path);
     const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
+    await this.__saveValidationResultsInCsv(results, folderName);
     const {
       valid_email_count,
       invalid_email_count,
       unknown_count,
-      grey_listed,
       catch_all_count,
       do_not_mail_count,
       spam_trap_count,
-    } = await this.__saveValidationResultsInCsv(results, folderName);
+    } = this.__getValidationsByTypes(results);
     const updateData: UpdateBulkFileDto = {
       valid_email_count,
+      file_status: BulkFileStatus.COMPLETE,
       invalid_email_count,
       unknown_count,
       catch_all_count,
@@ -204,10 +209,6 @@ export class SchedulerService {
   }
 
   private async __saveValidationResultsInCsv(results: EmailValidationResponseType[], folderName: string) {
-    let invalid_email_count = 0;
-    let do_not_mail_count = 0;
-    let unknown_count = 0;
-    let grey_listed = 0;
     const fileWithStatusTypes = {
       [EmailReason.ROLE_BASED]: [],
       [EmailReason.UNVERIFIABLE_EMAIL]: [],
@@ -249,26 +250,6 @@ export class SchedulerService {
       } else if (email.email_sub_status === EmailReason.DOES_NOT_ACCEPT_MAIL) {
         fileWithStatusTypes[EmailReason.DOES_NOT_ACCEPT_MAIL].push(email);
       }
-
-      if (
-        email.email_status === EmailStatus.INVALID ||
-        email.email_status === EmailStatus.INVALID_DOMAIN
-      ) {
-        invalid_email_count++;
-      } else if (
-        // Count 'IP_BLOCKED', 'UNVERIFIABLE_EMAIL' & 'SMTP_TIMEOUT' as unknown to report to user properly.
-        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.UNVERIFIABLE_EMAIL) ||
-        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.SMTP_TIMEOUT) ||
-        (email.email_status === EmailStatus.SERVICE_UNAVAILABLE && email.email_sub_status === EmailReason.IP_BLOCKED)
-      ) {
-        unknown_count++;
-      } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
-        do_not_mail_count++;
-      } else if (
-        email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.GREY_LISTED
-      ) {
-        grey_listed++;
-      }
     });
 
     for (const fileType of Object.keys(fileWithStatusTypes)) {
@@ -290,16 +271,6 @@ export class SchedulerService {
       folderName + '/combined.csv',
     );
     console.log(`combined.csv created`);
-    console.log({ grey_listed });
-    return {
-      valid_email_count: fileWithStatusTypes[EmailStatus.VALID].length,
-      invalid_email_count,
-      unknown_count,
-      grey_listed,
-      catch_all_count: fileWithStatusTypes[EmailStatus.CATCH_ALL].length,
-      do_not_mail_count,
-      spam_trap_count: fileWithStatusTypes[EmailStatus.SPAMTRAP].length,
-    };
   }
 
   private __getValidationsByTypes(results: EmailValidationResponseType[]) {
