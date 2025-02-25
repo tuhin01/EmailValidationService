@@ -4,7 +4,9 @@ export const SPAM_DB_CHECK_DAY_GAP = 100;
 export const CATCH_ALL_CHECK_DAY_GAP = 100;
 export const ERROR_DOMAIN_CHECK_DAY_GAP = 180;
 export const PROCESSED_EMAIL_CHECK_DAY_GAP = 100;
-export const GREY_LIST_MINUTE_GAP = 15;
+
+// In queue service expected time is in milliseconds. So we calculate it for 15 min
+export const GREY_LIST_MINUTE_GAP = 15 * 60 * 1000;
 export const SMTP_RESPONSE_MAX_DELAY = 3000;
 export const PROCESS_EMAIL_SEND_QUEUE = 'sendEmail';
 export const QUEUE = 'emailVerificationQueue';

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import {
+  GREY_LIST_MINUTE_GAP,
   PROCESS_BULK_FILE_QUEUE,
   PROCESS_EMAIL_SEND_QUEUE,
   PROCESS_GREY_LIST_QUEUE,
@@ -45,7 +46,7 @@ export class QueueService {
   async addGreyListEmailToQueue(emailSmtpResponses: EmailValidationResponseType[], bulkFile: BulkFile) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
-      delay: 15 * 60 * 1000, // delay for 15 minutes
+      delay: GREY_LIST_MINUTE_GAP, // delay for 15 minutes
       removeOnComplete: true, // Automatically delete job after processing
     };
     const jobData = {
