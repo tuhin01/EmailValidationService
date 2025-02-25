@@ -4,6 +4,7 @@ import { AuthService } from '@/auth/auth.service';
 import { RegisterDto } from '@/auth/dto/register.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt.guard';
 import { LocalGuard } from '@/auth/guards/local.guard';
+import { Public } from '@/common/decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -16,6 +17,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Public()
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
