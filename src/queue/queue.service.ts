@@ -2,25 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { JobOptions, Queue } from 'bull';
 import {
-  QUEUE,
   PROCESS_BULK_FILE_QUEUE,
   PROCESS_EMAIL_SEND_QUEUE,
   PROCESS_GREY_LIST_QUEUE,
+  QUEUE,
 } from '@/common/utility/constant';
 import { MailerService } from '@/mailer/mailer.service';
 import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
-  EmailValidationResponseType, SendMailOptions,
+  EmailValidationResponseType,
+  SendMailOptions,
 } from '@/common/utility/email-status-type';
 import Bottleneck from 'bottleneck';
 import { Domain, MXRecord } from '@/domains/entities/domain.entity';
 import { DomainService } from '@/domains/services/domain.service';
-import { RetryStatus } from '@/domains/entities/processed_email.entity';
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
-import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
+import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import { BulkFileEmailsService } from '@/bulk-file-emails/bulk-file-emails.service';
 
 @Injectable()
@@ -42,13 +42,18 @@ export class QueueService {
   });
 
 
-  async addGreyListEmailToQueue(emailSmtpResponse: EmailValidationResponseType[]) {
+  async addGreyListEmailToQueue(emailSmtpResponses: EmailValidationResponseType[], bulkFile: BulkFile) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
       delay: 15 * 60 * 1000, // delay for 15 minutes
       removeOnComplete: true, // Automatically delete job after processing
     };
-    await this.queue.add(PROCESS_GREY_LIST_QUEUE, emailSmtpResponse, jobOptions);
+    const jobData = {
+      bulkFile,
+      emailSmtpResponses,
+    };
+    await this.queue.add(PROCESS_GREY_LIST_QUEUE, jobData, jobOptions);
+    console.log('Done Adding to Grey list');
   }
 
   async addBulkFileToQueue(bulkFile: BulkFile) {
@@ -77,10 +82,11 @@ export class QueueService {
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = this.limiter;
 
-    const emails = emailQueueData;
-    console.log(emails);
+    const emailSmtpResponses: EmailValidationResponseType[] = emailQueueData.emailSmtpResponses;
+    const bulkFile: BulkFile = emailQueueData.bulkFile;
+    console.log(emailSmtpResponses);
 
-    const validationPromises: Promise<any>[] = emails.map((greyEmailRedisResponse: EmailValidationResponseType) => limiter.schedule(async () => {
+    const validationPromises: Promise<any>[] = emailSmtpResponses.map((greyEmailRedisResponse: EmailValidationResponseType) => limiter.schedule(async () => {
       console.log(`Gray Verify ${greyEmailRedisResponse.email_address} started`);
       const domain: Domain = await this.domainService.findOne(greyEmailRedisResponse.domain);
       let newEmailStatus: EmailStatusType;
@@ -114,8 +120,11 @@ export class QueueService {
 
     // Wait for all validations to complete
     await Promise.allSettled(validationPromises);
-
+    console.log('Updating bulk file status');
     // TODO - Update file status in BulkFile
+    bulkFile.file_status = BulkFileStatus.GREY_LIST_CHECK_DONE;
+    await bulkFile.save();
+    console.log(`Bulk file status updated for ${bulkFile.id}`);
   }
 
   async saveBulkFileEmails(bulkFile: BulkFile) {

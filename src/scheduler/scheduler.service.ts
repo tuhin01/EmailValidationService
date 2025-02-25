@@ -61,12 +61,13 @@ export class SchedulerService {
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
       const greyListEmails: EmailValidationResponseType[] = [];
       for (const result of results) {
-        if (result.email_sub_status === EmailReason.GREY_LISTED) {
+        if (result.email_sub_status === EmailReason.MAILBOX_NOT_FOUND) {
           greyListEmails.push(result);
         }
       }
       if(greyListEmails.length) {
-        await this.queueService.addGreyListEmailToQueue(greyListEmails);
+        console.log("Adding to Grey list");
+        await this.queueService.addGreyListEmailToQueue(greyListEmails, firstPendingFile);
       }
       // const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
       // const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
@@ -75,13 +76,12 @@ export class SchedulerService {
         valid_email_count,
         invalid_email_count,
         unknown_count,
-        grey_listed,
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
       } = this.__getValidationsByTypes(results);
       const bulkFileUpdateData: UpdateBulkFileDto = {
-        file_status: grey_listed > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
+        file_status: greyListEmails.length > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
         // validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
@@ -309,7 +309,6 @@ export class SchedulerService {
     let invalid_email_count = 0;
     let do_not_mail_count = 0;
     let unknown_count = 0;
-    let grey_listed = 0;
 
 
     results.forEach((email: EmailValidationResponseType) => {
@@ -333,10 +332,6 @@ export class SchedulerService {
         unknown_count++;
       } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
         do_not_mail_count++;
-      } else if (
-        email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.GREY_LISTED
-      ) {
-        grey_listed++;
       }
     });
 
@@ -345,7 +340,6 @@ export class SchedulerService {
       valid_email_count,
       invalid_email_count,
       unknown_count,
-      grey_listed,
       catch_all_count,
       do_not_mail_count,
       spam_trap_count,

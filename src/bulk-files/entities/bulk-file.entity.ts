@@ -12,6 +12,7 @@ export enum BulkFileStatus {
   PROCESSING = 'processing',
   COMPLETE = 'complete',
   GREY_LIST_CHECK = 'grey_list_check',
+  GREY_LIST_CHECK_DONE = 'grey_list_check_done',
   DELETED = 'deleted',
 }
 
