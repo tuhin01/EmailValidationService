@@ -11,6 +11,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Public()
   @UseGuards(LocalGuard)
   login(@Req() req: any) {
     return { auth_token: req.user };
