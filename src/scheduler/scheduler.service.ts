@@ -156,24 +156,7 @@ export class SchedulerService {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
     const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path);
     await this.__saveValidationResultsInCsv(results, folderName);
-    const {
-      valid_email_count,
-      invalid_email_count,
-      unknown_count,
-      catch_all_count,
-      do_not_mail_count,
-      spam_trap_count,
-    } = this.__getValidationsByTypes(results);
-
-    return {
-      valid_email_count,
-      invalid_email_count,
-      unknown_count,
-      catch_all_count,
-      do_not_mail_count,
-      spam_trap_count,
-    };
-
+    return this.__getValidationsByTypes(results);
   }
 
 
