@@ -60,7 +60,7 @@ export class SchedulerService {
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
       const greyListEmails: EmailValidationResponseType[] = [];
       for (const result of results) {
-        if (result.email_sub_status === EmailReason.MAILBOX_NOT_FOUND) {
+        if (result.email_sub_status === EmailReason.GREY_LISTED) {
           greyListEmails.push(result);
         }
       }
