@@ -28,9 +28,9 @@ export class ApiKeyGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     const authHeader = request.headers.api_key;
 
-    if (authHeader !== this.configService.get('API_KEY')) {
-      throw new UnauthorizedException('Invalid API key');
-    }
+    // if (authHeader !== this.configService.get('API_KEY')) {
+    //   throw new UnauthorizedException('Invalid API key');
+    // }
 
     return true;
   }
