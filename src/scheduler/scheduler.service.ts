@@ -120,28 +120,29 @@ export class SchedulerService {
       return;
     }
 
-    // const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(firstGreyListFile.id);
-    // const processedEmails: ProcessedEmail[] = [];
-    // if(bulkFileEmails.length) {
-    //   for (const bulkFileEmail of bulkFileEmails) {
-    //     const processedEmail: ProcessedEmail = await this.domainService.getProcessedEmail(bulkFileEmail.email_address);
-    //     processedEmails.push(processedEmail);
-    //   }
-    // }
-    // const processedEmails: ProcessedEmail[] = await this.domainService.getGreyListedProcessedEmail(firstGreyListFile.id);
-    // if (processedEmails.length) {
-    //   return;
-    // }
-    console.log('GreyList is in progress...');
     // Generate all csv and update DB with updated counts.
     const folderName: string = firstGreyListFile.file_path.split('/').at(-1).replace('.csv', '');
     const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
-    await this.__generateBulkFileResultCsv(firstGreyListFile.id, folderName);
+    const {
+      valid_email_count,
+      invalid_email_count,
+      unknown_count,
+      catch_all_count,
+      do_not_mail_count,
+      spam_trap_count,
+    } = await this.__generateBulkFileResultCsv(firstGreyListFile.id, folderName);
 
     let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
       validation_file_path: csvSavePath,
+      valid_email_count,
+      invalid_email_count,
+      unknown_count,
+      catch_all_count,
+      do_not_mail_count,
+      spam_trap_count,
+      updated_at: new Date(),
     };
     await this.bulkFilesService.updateBulkFile(
       firstGreyListFile.id,
@@ -163,20 +164,16 @@ export class SchedulerService {
       do_not_mail_count,
       spam_trap_count,
     } = this.__getValidationsByTypes(results);
-    const updateData: UpdateBulkFileDto = {
+
+    return {
       valid_email_count,
-      file_status: BulkFileStatus.COMPLETE,
       invalid_email_count,
       unknown_count,
       catch_all_count,
       do_not_mail_count,
       spam_trap_count,
-      updated_at: new Date(),
     };
-    await this.bulkFilesService.updateBulkFile(
-      fileId,
-      updateData,
-    );
+
   }
 
 
@@ -305,7 +302,6 @@ export class SchedulerService {
         do_not_mail_count++;
       }
     });
-
 
     return {
       valid_email_count,
