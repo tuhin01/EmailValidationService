@@ -45,7 +45,7 @@ export class QueueService {
   async addGreyListEmailToQueue(emailSmtpResponses: EmailValidationResponseType[], bulkFile: BulkFile) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
-      delay: 15 * 60 * 1000, // delay for 15 minutes
+      delay: 1 * 60 * 1000, // delay for 15 minutes
       removeOnComplete: true, // Automatically delete job after processing
     };
     const jobData = {

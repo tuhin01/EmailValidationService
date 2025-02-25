@@ -107,7 +107,7 @@ export class SchedulerService {
     }
   }
 
-  // @Cron('1 * * * * *') // Runs every minutes
+  @Cron('1 * * * * *') // Runs every minutes
   public async generateCsvAndSendEmailForGreyListCheckedFiles() {
     const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
     console.log({ grayListFile: greyListFile });
@@ -165,6 +165,7 @@ export class SchedulerService {
     const updateData: UpdateBulkFileDto = {
       valid_email_count,
       file_status: BulkFileStatus.COMPLETE,
+      validation_file_path: folderName,
       invalid_email_count,
       unknown_count,
       catch_all_count,
