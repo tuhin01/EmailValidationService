@@ -1,5 +1,4 @@
 import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
-import { differenceInDays } from 'date-fns';
 import * as dns from 'dns';
 import { DataSource } from 'typeorm';
 
@@ -8,7 +7,6 @@ import {
   CATCH_ALL_CHECK_DAY_GAP,
   ERROR_DOMAIN_CHECK_DAY_GAP,
   MX_RECORD_CHECK_DAY_GAP,
-  PROCESSED_EMAIL_CHECK_DAY_GAP,
   SPAM_DB_CHECK_DAY_GAP,
 } from '@/common/utility/constant';
 import { DNSBL } from '@/common/utility/dnsbl';
@@ -34,6 +32,7 @@ import { User } from '@/users/entities/user.entity';
 import { MailerService } from '@/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
+import { TimeService } from '@/time/time.service';
 
 @Injectable()
 export class DomainService {
@@ -44,6 +43,7 @@ export class DomainService {
     private emailRolesService: EmailRolesService,
     private mailerService: MailerService,
     private smtpService: SmtpConnectionService,
+    private timeService: TimeService,
     private winstonLoggerService: WinstonLoggerService,
   ) {
   }
@@ -85,7 +85,7 @@ export class DomainService {
       });
       if (errorDomain) {
         const errorStatus: string = errorDomain.domain_error['status'];
-        const dayPassedSinceCheck = differenceInDays(
+        const dayPassedSinceCheck = this.timeService.getTimeDifferenceInDays(
           new Date(),
           errorDomain.created_at,
         );
@@ -133,28 +133,9 @@ export class DomainService {
       email_address: email,
     });
     if (processedEmail) {
-      const dayPassedSinceLastMxCheck = differenceInDays(
-        new Date(),
-        processedEmail.created_at,
-      );
-
-      // If processed email has one of the below email_status, then we will revalidate the
-      // email and not use database response.
-      if (
-        (
-          dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP
-        )
-        &&
-        (
-          processedEmail.email_status === EmailStatus.VALID ||
-          processedEmail.email_status === EmailStatus.CATCH_ALL ||
-          processedEmail.email_status === EmailStatus.SPAMTRAP ||
-          processedEmail.email_status === EmailStatus.DO_NOT_MAIL
-        )
-      ) {
+      if (this.timeService.shouldReturnCachedProcessedEmail(processedEmail)) {
         return processedEmail;
       }
-
     }
     return null;
   }
@@ -287,7 +268,7 @@ export class DomainService {
       // If yes - then revalidate mx records to make sure it is still valid
       // If not - then continue using it
       if (dbDomain) {
-        const dayPassedSinceLastMxCheck = differenceInDays(
+        const dayPassedSinceLastMxCheck = this.timeService.getTimeDifferenceInDays(
           new Date(),
           dbDomain.created_at,
         );
@@ -501,13 +482,13 @@ export class DomainService {
       let smtpService: SmtpConnectionService;
       let smtpConnectionStatus: EmailStatusType;
       // try {
-        smtpService = new SmtpConnectionService(this.winstonLoggerService);
-        smtpConnectionStatus = await smtpService.connect(mxRecordHost);
+      smtpService = new SmtpConnectionService(this.winstonLoggerService);
+      smtpConnectionStatus = await smtpService.connect(mxRecordHost);
       // } catch (e) {
-        // e - is type of 'EmailStatusType' as we reject with
-        // this type from SmtpConnectionService connect().
-        // That's how we know we can assign 'e' to 'smtpConnectionStatus'
-        // smtpConnectionStatus = e;
+      // e - is type of 'EmailStatusType' as we reject with
+      // this type from SmtpConnectionService connect().
+      // That's how we know we can assign 'e' to 'smtpConnectionStatus'
+      // smtpConnectionStatus = e;
       // }
       // When 'SMTP_TIMEOUT', we resolve it to process here. Otherwise,
       // rejection occur, and it goes to catch block
@@ -541,7 +522,7 @@ export class DomainService {
         emailStatus.domain,
       );
 
-      if(emailStatus.email_sub_status === EmailReason.SOCKET_NOT_FOUND) {
+      if (emailStatus.email_sub_status === EmailReason.SOCKET_NOT_FOUND) {
 
       }
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);

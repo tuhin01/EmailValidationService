@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { differenceInMinutes } from 'date-fns';
-import { BulkFile } from '@/bulk-files/entities/bulk-file.entity';
-import { GRAY_LIST_MINUTE_GAP } from '@/common/utility/constant';
+import { differenceInDays, differenceInMinutes } from 'date-fns';
+import { PROCESSED_EMAIL_CHECK_DAY_GAP } from '@/common/utility/constant';
+import { ProcessedEmail } from '@/domains/entities/processed_email.entity';
+import { EmailStatus } from '@/common/utility/email-status-type';
 
 @Injectable()
 export class TimeService {
@@ -9,14 +10,32 @@ export class TimeService {
     return differenceInMinutes(date1, date2);
   }
 
-  public shouldRunGrayListCheck(file: BulkFile): boolean {
-    const updatedAt: Date = file.updated_at;
-    const now = new Date();
+  public getTimeDifferenceInDays(date1: Date, date2: Date) {
+    return differenceInDays(date1, date2);
+  }
 
-    const minutesPassed = this.getTimeDifferenceInMin(
-      now, updatedAt,
+  public shouldReturnCachedProcessedEmail(processedEmail: ProcessedEmail): boolean {
+    const dayPassedSinceLastMxCheck = this.getTimeDifferenceInDays(
+      new Date(),
+      processedEmail.created_at,
     );
-    return minutesPassed >= GRAY_LIST_MINUTE_GAP;
+
+    // If processed email has one of the below email_status, then we will revalidate the
+    // email and not use database response.
+    if (
+      (
+        dayPassedSinceLastMxCheck < PROCESSED_EMAIL_CHECK_DAY_GAP
+      )
+      &&
+      (
+        processedEmail.email_status === EmailStatus.VALID ||
+        processedEmail.email_status === EmailStatus.CATCH_ALL ||
+        processedEmail.email_status === EmailStatus.SPAMTRAP ||
+        processedEmail.email_status === EmailStatus.DO_NOT_MAIL
+      )
+    ) {
+      return true;
+    }
   }
 
 }

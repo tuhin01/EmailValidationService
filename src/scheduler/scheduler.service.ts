@@ -92,13 +92,6 @@ export class SchedulerService {
         bulkFileUpdateData,
       );
 
-      // Send email notification if the file status is complete
-      // if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-      //   await this.__sendEmailNotification(user, firstPendingFile.id);
-      // }
-
-      // console.log('File Status updated to - COMPLETE');
-
     } catch (e) {
       this.winstonLoggerService.error('Bulk File Error', e.trace);
       console.log(e);
@@ -344,18 +337,8 @@ export class SchedulerService {
             user,
             bulkFile.id,
           );
-
-          // Add emails to GreyList check
-          // if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
-          //   await this.queueService.addGreyListEmailToQueue(validationResponse);
-          // }
           console.log(`Complete ${validationResponse.email_address}`);
-          // const record = records.find(r => r.Email === bulkFileEmail.email_address);
-          // console.log({ record });
-          return {
-            // ...record,
-            ...validationResponse,
-          };
+          return validationResponse;
         }),
       );
       // Wait for all validations to complete
