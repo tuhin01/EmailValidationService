@@ -42,7 +42,7 @@ export class QueueService {
   });
 
 
-  async addGreyListEmailToQueue(emailSmtpResponse: EmailValidationResponseType) {
+  async addGreyListEmailToQueue(emailSmtpResponse: EmailValidationResponseType[]) {
     const jobOptions: JobOptions = {
       attempts: 1, // Retry 3 times if failed
       delay: 15 * 60 * 1000, // delay for 15 minutes
@@ -77,7 +77,7 @@ export class QueueService {
     // Bottleneck for rate limiting (CommonJS compatible)
     const limiter = this.limiter;
 
-    const emails = [emailQueueData];
+    const emails = emailQueueData;
     console.log(emails);
 
     const validationPromises: Promise<any>[] = emails.map((greyEmailRedisResponse: EmailValidationResponseType) => limiter.schedule(async () => {
@@ -106,7 +106,7 @@ export class QueueService {
         greyEmailRedisResponse.email_sub_status = newEmailStatus.reason;
       }
       console.log({ emailStatus: newEmailStatus });
-      greyEmailRedisResponse.retry = RetryStatus.COMPLETE;
+      // greyEmailRedisResponse.retry = RetryStatus.COMPLETE;
       await this.domainService.updateProcessedEmailByEmail(greyEmailRedisResponse.email_address, greyEmailRedisResponse);
 
       return newEmailStatus;
@@ -115,6 +115,7 @@ export class QueueService {
     // Wait for all validations to complete
     await Promise.allSettled(validationPromises);
 
+    // TODO - Update file status in BulkFile
   }
 
   async saveBulkFileEmails(bulkFile: BulkFile) {

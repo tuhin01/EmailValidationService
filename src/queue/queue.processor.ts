@@ -18,7 +18,7 @@ export class QueueProcessor {
   }
 
   @Process(PROCESS_GREY_LIST_QUEUE)
-  async handleQueueTask(job: Job<EmailValidationResponseType>) {
+  async handleQueueTask(job: Job<EmailValidationResponseType[]>) {
     console.log('Processing Queue:', job.data);
     return this.queueService.runGrayListCheck(job.data);
   }

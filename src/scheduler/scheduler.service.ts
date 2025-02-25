@@ -59,8 +59,17 @@ export class SchedulerService {
         processingStatus,
       );
       const results: any[] = await this.__bulkValidate(firstPendingFile, user);
-      const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
-      const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
+      const greyListEmails: EmailValidationResponseType[] = [];
+      for (const result of results) {
+        if (result.email_sub_status === EmailReason.GREY_LISTED) {
+          greyListEmails.push(result);
+        }
+      }
+      if(greyListEmails.length) {
+        await this.queueService.addGreyListEmailToQueue(greyListEmails);
+      }
+      // const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
+      // const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
       const {
         valid_email_count,
@@ -70,10 +79,10 @@ export class SchedulerService {
         catch_all_count,
         do_not_mail_count,
         spam_trap_count,
-      } = await this.__saveValidationResultsInCsv(results, folderName);
+      } = this.__getValidationsByTypes(results);
       const bulkFileUpdateData: UpdateBulkFileDto = {
         file_status: grey_listed > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.COMPLETE,
-        validation_file_path: csvSavePath,
+        // validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
         unknown_count,
@@ -88,9 +97,9 @@ export class SchedulerService {
       );
 
       // Send email notification if the file status is complete
-      if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
-        await this.__sendEmailNotification(user, firstPendingFile.id);
-      }
+      // if (bulkFileUpdateData.file_status === BulkFileStatus.COMPLETE) {
+      //   await this.__sendEmailNotification(user, firstPendingFile.id);
+      // }
 
       console.log('File Status updated to - COMPLETE');
 
@@ -114,6 +123,8 @@ export class SchedulerService {
 
       return;
     }
+
+    const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(firstGreyListFile.id);
 
     const processedEmails: ProcessedEmail[] = await this.domainService.getGreyListedProcessedEmail(firstGreyListFile.id);
     if (processedEmails.length) {
@@ -291,6 +302,56 @@ export class SchedulerService {
     };
   }
 
+  private __getValidationsByTypes(results: EmailValidationResponseType[]) {
+    let valid_email_count = 0;
+    let catch_all_count = 0;
+    let spam_trap_count = 0;
+    let invalid_email_count = 0;
+    let do_not_mail_count = 0;
+    let unknown_count = 0;
+    let grey_listed = 0;
+
+
+    results.forEach((email: EmailValidationResponseType) => {
+      if (email.email_status === EmailStatus.VALID) {
+        valid_email_count++;
+      } else if (email.email_status === EmailStatus.CATCH_ALL) {
+        catch_all_count++;
+      } else if (email.email_status === EmailStatus.SPAMTRAP) {
+        spam_trap_count++;
+      } else if (
+        email.email_status === EmailStatus.INVALID ||
+        email.email_status === EmailStatus.INVALID_DOMAIN
+      ) {
+        invalid_email_count++;
+      } else if (
+        // Count 'IP_BLOCKED', 'UNVERIFIABLE_EMAIL' & 'SMTP_TIMEOUT' as unknown to report to user properly.
+        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.UNVERIFIABLE_EMAIL) ||
+        (email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.SMTP_TIMEOUT) ||
+        (email.email_status === EmailStatus.SERVICE_UNAVAILABLE && email.email_sub_status === EmailReason.IP_BLOCKED)
+      ) {
+        unknown_count++;
+      } else if (email.email_status === EmailStatus.DO_NOT_MAIL) {
+        do_not_mail_count++;
+      } else if (
+        email.email_status === EmailStatus.UNKNOWN && email.email_sub_status === EmailReason.GREY_LISTED
+      ) {
+        grey_listed++;
+      }
+    });
+
+
+    return {
+      valid_email_count,
+      invalid_email_count,
+      unknown_count,
+      grey_listed,
+      catch_all_count,
+      do_not_mail_count,
+      spam_trap_count,
+    };
+  }
+
   private async __bulkValidate(bulkFile: BulkFile, user: User): Promise<any[]> {
     if (!bulkFile.file_path) {
       throw new Error('No file path provided');
@@ -304,8 +365,8 @@ export class SchedulerService {
 
     try {
       const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(bulkFile.id);
-      const records = await this.bulkFilesService.readCsvFile(bulkFile.file_path);
-      console.log({ records });
+      // const records = await this.bulkFilesService.readCsvFile(bulkFile.file_path);
+      // console.log({ records });
 
       // const results = [];
       // for (const record of records) {
@@ -341,14 +402,14 @@ export class SchedulerService {
           );
 
           // Add emails to GreyList check
-          if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
-            await this.queueService.addGreyListEmailToQueue(validationResponse);
-          }
+          // if (validationResponse.email_sub_status === EmailReason.GREY_LISTED) {
+          //   await this.queueService.addGreyListEmailToQueue(validationResponse);
+          // }
           console.log(`Complete ${validationResponse.email_address}`);
-          const record = records.find(r => r.Email === bulkFileEmail.email_address);
-          console.log({ record });
+          // const record = records.find(r => r.Email === bulkFileEmail.email_address);
+          // console.log({ record });
           return {
-            ...record,
+            // ...record,
             ...validationResponse,
           };
         }),
