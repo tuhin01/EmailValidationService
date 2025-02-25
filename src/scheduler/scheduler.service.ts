@@ -20,6 +20,7 @@ import { QueueService } from '@/queue/queue.service';
 import { Attachment } from 'nodemailer/lib/mailer';
 import { BulkFileEmailsService } from '@/bulk-file-emails/bulk-file-emails.service';
 import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
+import * as path from 'path';
 
 @Injectable()
 export class SchedulerService {
@@ -67,8 +68,6 @@ export class SchedulerService {
         console.log('Adding to Grey list');
         await this.queueService.addGreyListEmailToQueue(greyListEmails, firstPendingFile);
       }
-      // const folderName: string = firstPendingFile.file_path.split('/').at(-1).replace('.csv', '');
-      // const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
 
       const {
         valid_email_count,
@@ -80,7 +79,6 @@ export class SchedulerService {
       } = this.__getValidationsByTypes(results);
       const bulkFileUpdateData: UpdateBulkFileDto = {
         file_status: greyListEmails.length > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.GREY_LIST_CHECK_DONE,
-        // validation_file_path: csvSavePath,
         valid_email_count,
         invalid_email_count,
         unknown_count,
@@ -136,10 +134,14 @@ export class SchedulerService {
     // }
     console.log('GreyList is in progress...');
     // Generate all csv and update DB with updated counts.
-    await this.__generateBulkFileResultCsv(firstGreyListFile.id);
+    const folderName: string = firstGreyListFile.file_path.split('/').at(-1).replace('.csv', '');
+    const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
+
+    await this.__generateBulkFileResultCsv(firstGreyListFile.id, folderName);
 
     let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
+      validation_file_path: csvSavePath,
     };
     await this.bulkFilesService.updateBulkFile(
       firstGreyListFile.id,
@@ -149,10 +151,9 @@ export class SchedulerService {
     await this.__sendEmailNotification(user, firstGreyListFile.id);
   }
 
-  private async __generateBulkFileResultCsv(fileId: number) {
+  private async __generateBulkFileResultCsv(fileId: number, folderName: string) {
     const bulkFile: BulkFile = await this.bulkFilesService.getBulkFile(fileId);
     const results = await this.__readSCsvAndMergeValidationResults(bulkFile.file_path);
-    const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
     await this.__saveValidationResultsInCsv(results, folderName);
     const {
       valid_email_count,
@@ -165,7 +166,6 @@ export class SchedulerService {
     const updateData: UpdateBulkFileDto = {
       valid_email_count,
       file_status: BulkFileStatus.COMPLETE,
-      validation_file_path: folderName,
       invalid_email_count,
       unknown_count,
       catch_all_count,
@@ -256,7 +256,6 @@ export class SchedulerService {
     for (const fileType of Object.keys(fileWithStatusTypes)) {
       const fileName = folderName + '/' + fileType + '.csv';
       const csvData: [] = fileWithStatusTypes[fileType];
-      console.log({ csvData });
       if (csvData.length) {
         await this.bulkFilesService.generateCsv(
           csvData,
