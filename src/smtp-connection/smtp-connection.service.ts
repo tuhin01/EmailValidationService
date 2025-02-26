@@ -32,7 +32,7 @@ export class SmtpConnectionService {
     this.host = mxHost;
     return new Promise(async (resolve, reject): Promise<any> => {
       let socketDataFired = false;
-      this.socket = net.createConnection(this.port, this.host, () => {
+      this.socket = net.createConnection({ host: this.host, port: this.port, family: 4 }, () => {
         console.log('Socket connected!');
       });
       this.socket.setEncoding(this.socketEncoding);
@@ -326,7 +326,7 @@ export class SmtpConnectionService {
             };
             resolve(error);
             return;
-          } else if(e === EmailReason.SOCKET_NOT_FOUND) {
+          } else if (e === EmailReason.SOCKET_NOT_FOUND) {
             const error: EmailStatusType = {
               status: EmailStatus.UNKNOWN,
               reason: EmailReason.GREY_LISTED,
