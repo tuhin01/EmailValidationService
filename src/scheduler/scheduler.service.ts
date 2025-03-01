@@ -294,8 +294,8 @@ export class SchedulerService {
       throw new Error('No file path provided');
     }
 
-    const batchSize = 50;
-    const delayBetweenBatches = 10000;
+    const batchSize = 10;
+    const delayBetweenBatches = 15 * 1000;
     const limiter = new Bottleneck({
       maxConcurrent: 2, // Adjust based on your testing
       minTime: 300, // 300ms delay between requests (adjustable)
