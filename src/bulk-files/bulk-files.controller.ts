@@ -18,12 +18,15 @@ import { BulkFilesService } from '@/bulk-files/bulk-files.service';
 import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import { QueueService } from '@/queue/queue.service';
+import * as process from 'node:process';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('bulk-files')
 export class BulkFilesController {
   constructor(
     private readonly bulkFilesService: BulkFilesService,
     private readonly queueService: QueueService,
+    private readonly configService: ConfigService,
   ) {
   }
 
@@ -60,7 +63,10 @@ export class BulkFilesController {
         throw new HttpException(isValid, HttpStatus.BAD_REQUEST);
       }
       const fileName = randomStringGenerator() + '.csv';
-      const csvSavePath = `./uploads/csv/${fileName}`;
+      const localFilePath = `/uploads/csv/`;
+      const serverRootPath = this.configService.get<string>('SERVER_ROOT_PATH');
+
+      const csvSavePath = `${serverRootPath}${localFilePath}${fileName}`;
       fs.writeFile(csvSavePath, buffer, (err) => {
         console.log(err);
       });
