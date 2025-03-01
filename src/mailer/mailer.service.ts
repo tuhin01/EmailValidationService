@@ -22,16 +22,19 @@ export class MailerService {
       },
     });
 
+    const serverPath = `${configService.get<string>('SERVER_ROOT_PATH')}`;
+    const templatePath = `${serverPath}src/mailer/templates`;
+
     // Configure Handlebars
     this.transporter.use(
       'compile',
       hbs({
         viewEngine: {
           extname: '.hbs',
-          layoutsDir: './src/mailer/templates',
+          layoutsDir: templatePath,
           defaultLayout: false,
         },
-        viewPath: './src/mailer/templates',
+        viewPath: templatePath,
         extName: '.hbs',
       }),
     );
