@@ -12,6 +12,8 @@ import { CreateBulkFileDto } from '@/bulk-files/dto/create-bulk-file.dto';
 import { UpdateBulkFileDto } from '@/bulk-files/dto/update-bulk-file.dto';
 import { BulkFile, BulkFileStatus } from '@/bulk-files/entities/bulk-file.entity';
 import * as process from 'node:process';
+import * as constants from 'node:constants';
+import { DEV } from '@/common/utility/constant';
 
 @Injectable()
 export class BulkFilesService {
@@ -53,7 +55,9 @@ export class BulkFilesService {
   }
 
   async generateCsv(data: any[], filename: string): Promise<string> {
-    const csvSavePath = path.join(process.cwd(), 'uploads', 'csv', 'validated', filename);
+    const uploadPath: string = process.env.NODE_ENV === DEV ? '/uploads' : '../uploads';
+    const csvSavePath = path.join(process.cwd(), uploadPath, 'csv', 'validated', filename);
+    console.log({ csvSavePath });
     // Ensure the directory exists
     if (!fs.existsSync(path.dirname(csvSavePath))) {
       fs.mkdirSync(path.dirname(csvSavePath), { recursive: true });

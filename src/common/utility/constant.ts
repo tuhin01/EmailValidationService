@@ -12,3 +12,5 @@ export const PROCESS_EMAIL_SEND_QUEUE = 'sendEmail';
 export const QUEUE = 'emailVerificationQueue';
 export const PROCESS_GREY_LIST_QUEUE = 'processGreyListQueue';
 export const PROCESS_BULK_FILE_QUEUE = 'processBulkFileQueue';
+export const DEV = 'development';
+export const PROD = 'production';

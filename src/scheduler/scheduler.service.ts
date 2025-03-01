@@ -115,7 +115,7 @@ export class SchedulerService {
 
     // Generate all csv and update DB with updated counts.
     const folderName: string = firstGreyListFile.file_path.split('/').at(-1).replace('.csv', '');
-    const csvSavePath: string = path.join(process.cwd(), 'uploads', 'csv', 'validated', folderName);
+    const csvSavePath: string = path.join(process.cwd(), '../uploads', 'csv', 'validated', folderName);
 
     const {
       valid_email_count,
