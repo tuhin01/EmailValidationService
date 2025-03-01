@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && npm run copy-assets",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -20,6 +20,7 @@
     "pretest:e2e": "docker-compose up -d test-db",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "posttest:e2e": "docker-compose stop test-db && docker-compose rm -f test-db",
+    "copy-assets": "copyfiles -u 1 src/mailer/templates/*.hbs dist/src",
     "migration:generate": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d src/database/config/datasource.config.ts ./src/database/migrations/migration",
     "migration:run": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d src/database/config/datasource.config.ts",
     "migration:revert": "npx ts-node -P ./tsconfig.json -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d src/database/config/datasource.config.ts"
@@ -83,6 +84,7 @@
     "@types/winston": "2.4.4",
     "@typescript-eslint/eslint-plugin": "8.20.0",
     "@typescript-eslint/parser": "8.20.0",
+    "copyfiles": "2.4.1",
     "eslint": "8.57.1",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-prettier": "5.2.2",
