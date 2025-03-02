@@ -294,7 +294,7 @@ export class SmtpConnectionService {
   }
 
   async verifyEmail(email: string): Promise<EmailStatusType> {
-    const mailFrom = 'fwork03@gmail.com';
+    const mailFrom = 'manob.tushar@gmail.com';
     const [account, domain] = email.split('@');
     const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
     return new Promise(async (resolve, reject): Promise<EmailStatusType> => {

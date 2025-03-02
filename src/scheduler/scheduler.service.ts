@@ -289,61 +289,64 @@ export class SchedulerService {
     };
   }
 
-  private async __bulkValidate(bulkFile: BulkFile, user: User): Promise<any[]> {
+  private async __bulkValidate(bulkFile: BulkFile, user: User): Promise<EmailValidationResponseType[]> {
     if (!bulkFile.file_path) {
       throw new Error('No file path provided');
     }
 
-    const batchSize = 10;
-    const delayBetweenBatches = 15 * 1000;
-    const limiter = new Bottleneck({
+    let batchSize = 10;
+    let delayBetweenBatches = 10 * 1000;
+    let limiter = new Bottleneck({
       maxConcurrent: 2, // Adjust based on your testing
       minTime: 300, // 300ms delay between requests (adjustable)
     });
-    const results: any[] = [];
+    const results: EmailValidationResponseType[] = [];
 
     try {
       const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(bulkFile.id);
-
-      // Split emails into batches
-      const emailBatches = [];
-      for (let i = 0; i < bulkFileEmails.length; i += batchSize) {
-        emailBatches.push(bulkFileEmails.slice(i, i + batchSize));
+      const outlookEmails: BulkFileEmail[] = [];
+      const nonOutlookEmails: BulkFileEmail[] = [];
+      for (const bulkFileEmail of bulkFileEmails) {
+        const mxRecords = await this.domainService.checkDomainMxRecords(bulkFileEmail.email_address, null);
+        if (mxRecords[0].exchange.includes('outlook.com')) {
+          outlookEmails.push(bulkFileEmail);
+        } else {
+          nonOutlookEmails.push(bulkFileEmail);
+        }
       }
 
+      // Split emails into batches
+      const nonOutlookEmailBatches = this.__createBatchOfSize(batchSize, nonOutlookEmails)
+      // For Outlook, each batch should have only 1 email.
+      batchSize = 1;
+      const outlookEmailBatches = this.__createBatchOfSize(batchSize, outlookEmails);
+
       // Process each batch sequentially
-      for (const batch of emailBatches) {
+      console.log(`Starting NOT outlook emails...`);
+      for (const batch of nonOutlookEmailBatches) {
         console.log(`Starting batch of ${batch.length} emails...`);
-
-        const batchPromises = batch.map((bulkFileEmail) =>
-          limiter.schedule(async () => {
-            try {
-              console.log(`Validation started: ${bulkFileEmail.email_address}`);
-              const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
-                bulkFileEmail.email_address,
-                user,
-                bulkFile.id,
-              );
-              console.log(`Validation complete: ${validationResponse.email_address}`);
-              return validationResponse;
-            } catch (error) {
-              console.error(`Error validating ${bulkFileEmail.email_address}:`, error);
-              return null; // Capture the error instead of failing the batch
-            }
-          }),
-        );
-
-        // Wait for the batch to complete
-        const batchResults = await Promise.allSettled(batchPromises);
-        results.push(
-          ...batchResults
-            .filter(result => result.status === 'fulfilled' && result.value !== null)
-            .map(result => (result as PromiseFulfilledResult<any>).value),
-        );
-
+        const result: EmailValidationResponseType[] = await this.__processBatchValidation(batch, limiter, user, bulkFile);
+        results.push(...result);
         console.log(`Batch completed. Waiting ${delayBetweenBatches}ms before next batch...`);
         await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
       }
+      console.log(`Completed NOT outlook emails...`);
+
+      console.log(`Starting outlook emails...`);
+      // For Outlook mail server we slow the limiter to only 1 per concurrency
+      // and delay between batches is 2 sec as batch size is 1 email
+      limiter = new Bottleneck({
+        maxConcurrent: 1,
+      });
+      delayBetweenBatches = 2 * 1000;
+      for (const batch of outlookEmailBatches) {
+        console.log(`Starting batch of ${batch.length} emails...`);
+        const result: EmailValidationResponseType[] = await this.__processBatchValidation(batch, limiter, user, bulkFile);
+        results.push(...result);
+        console.log(`Batch completed. Waiting ${delayBetweenBatches}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      }
+      console.log(`Completed outlook emails...`);
 
       console.log('✅ All batches processed.');
       return results;
@@ -351,6 +354,46 @@ export class SchedulerService {
       console.error('❌ Error during bulk validation:', err);
       throw err; // Re-throw to let the caller handle it
     }
+  }
+
+  private __createBatchOfSize(size: number, emails: BulkFileEmail[]) {
+    const batch = [];
+    for (let i = 0; i < emails.length; i += size) {
+      batch.push(emails.slice(i, i + size));
+    }
+
+    return batch;
+  }
+
+  private async __processBatchValidation(batch: BulkFileEmail[], limiter, user, bulkFile): Promise<EmailValidationResponseType[]> {
+    const results: EmailValidationResponseType[] = [];
+    const batchPromises = batch.map((bulkFileEmail) =>
+      limiter.schedule(async () => {
+        try {
+          console.log(`Validation started: ${bulkFileEmail.email_address}`);
+          const validationResponse: EmailValidationResponseType = await this.domainService.smtpValidation(
+            bulkFileEmail.email_address,
+            user,
+            bulkFile.id,
+          );
+          console.log(`Validation complete: ${validationResponse.email_address}`);
+          return validationResponse;
+        } catch (error) {
+          console.error(`Error validating ${bulkFileEmail.email_address}:`, error);
+          return null; // Capture the error instead of failing the batch
+        }
+      }),
+    );
+
+    // Wait for the batch to complete
+    const batchResults = await Promise.allSettled(batchPromises);
+    results.push(
+      ...batchResults
+        .filter(result => result.status === 'fulfilled' && result.value !== null)
+        .map(result => (result as PromiseFulfilledResult<any>).value),
+    );
+
+    return results;
   }
 
 
