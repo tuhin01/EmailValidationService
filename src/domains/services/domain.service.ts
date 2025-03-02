@@ -417,7 +417,10 @@ export class DomainService {
       await this.validateEmailFormat(email);
 
       // Query DB to check if domain found in error_domains
-      const dbErrorDomain: ErrorDomain = await this.findErrorDomain(domain);
+      // If domain is listed as ErrorDomain then we check if enough time passed to recheck
+      // otherwise, we reject from there, and it is catch in the try ...catch block
+      // So we do not check the response from findErrorDomain here.
+      await this.findErrorDomain(domain);
 
       // Query DB for existing domain check
       let dbDomain: Domain = await this.findOne(domain);

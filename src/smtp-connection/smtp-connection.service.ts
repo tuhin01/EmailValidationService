@@ -11,6 +11,7 @@ import {
 import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { SMTP_RESPONSE_MAX_DELAY } from '@/common/utility/constant';
+import freeEmailProviderList from '@/common/utility/free-email-provider-list';
 
 @Injectable()
 export class SmtpConnectionService {
@@ -300,17 +301,21 @@ export class SmtpConnectionService {
       try {
         await this.sendCommand(`EHLO ${this.host}`);
         await this.sendCommand(`MAIL FROM:<${mailFrom}>`);
-        // Check for Catch-All email
-        const responseCatchAllRcptTo = await this.sendCommand(`RCPT TO:<${catchAllEmail}>`, catchAllEmail);
-        const catchAllEmailStatus: EmailStatusType = this.parseSmtpResponseData(responseCatchAllRcptTo, catchAllEmail);
-        if (catchAllEmailStatus.status === EmailStatus.VALID) {
-          const error: EmailStatusType = {
-            status: EmailStatus.CATCH_ALL,
-            reason: EmailReason.EMPTY,
-          };
-          reject(error);
-          await this.sendCommand(`QUIT`);
-          return;
+        // Check for Catch-All email for business domains only.
+        // Known Email Providers like gmail.com, yahoo.com, outlook.com do not
+        // have catch all.
+        if (!freeEmailProviderList.includes(domain)) {
+          const responseCatchAllRcptTo = await this.sendCommand(`RCPT TO:<${catchAllEmail}>`, catchAllEmail);
+          const catchAllEmailStatus: EmailStatusType = this.parseSmtpResponseData(responseCatchAllRcptTo, catchAllEmail);
+          if (catchAllEmailStatus.status === EmailStatus.VALID) {
+            const error: EmailStatusType = {
+              status: EmailStatus.CATCH_ALL,
+              reason: EmailReason.EMPTY,
+            };
+            reject(error);
+            await this.sendCommand(`QUIT`);
+            return;
+          }
         }
         const responseRcptTo = await this.sendCommand(`RCPT TO:<${email}>`, email);
         const emailStatus: EmailStatusType = this.parseSmtpResponseData(responseRcptTo, email);
