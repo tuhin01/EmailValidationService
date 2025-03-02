@@ -10,9 +10,10 @@ export enum BulkFileStatus {
   QUEUED = 'queued',
   PENDING = 'pending',
   PROCESSING = 'processing',
-  COMPLETE = 'complete',
-  GREY_LIST_CHECK = 'grey_list_check',
+  READY_FOR_GREY_LIST = 'ready_for_grey_list',
+  GREY_LIST_CHECK_PROGRESS = 'grey_list_check_progress',
   GREY_LIST_CHECK_DONE = 'grey_list_check_done',
+  COMPLETE = 'complete',
   DELETED = 'deleted',
 }
 

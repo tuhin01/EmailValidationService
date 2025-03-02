@@ -71,9 +71,6 @@ export class SmtpConnectionService {
               rejectUnauthorized: false, // Allow self-signed certificates
             },
             () => {
-              if (secureSocket.authorized) {
-                // console.log('Authorized');
-              }
               if (secureSocket.encrypted) {
                 console.log('✅ TLS secured. Ready to authenticate.');
                 this.socket.removeAllListeners();
@@ -199,35 +196,7 @@ export class SmtpConnectionService {
           console.debug(`➡ Sent: ${command}`);
         });
 
-        // let responseData = '';
-        // this.socket.once('data', (data) => {
-        //   responseData = data.toString();
-        //   console.debug(`⬅ Received: ${responseData}`);
-        //   // resolve(responseData);
-        //   // return;
-        // });
-
         let responseData = '';
-        // let socketChunks = [];
-        // this.socket.on('data', (chunk) => {
-        //   responseData += chunk.toString();
-        //   // socketChunks.push(chunk.toString());
-        //   console.debug(`⬅ Received: ${chunk.toString()}`);
-        //   console.log('Has \r\n - ' + responseData.includes('\r\n'));
-        //   // // Check if SMTP response is complete
-        //   if ((command.includes('EHLO') || command.includes('MAIL FROM')) && responseData.includes('250')) {
-        //     const resArr = responseData.split('\r\n');
-        //     const filteredArr = resArr.filter((i => i !== ''));
-        //     const lastResponseData = filteredArr[filteredArr.length - 1];
-        //     console.debug(`⬅ Last Part Received: ${lastResponseData}`);
-        //     resolve(lastResponseData);
-        //     responseData = '';
-        //     return;
-        //   } else if(command.includes('RCPT TO')) {
-        //     resolve(responseData);
-        //     return;
-        //   }
-        // });
 
         this.socket.on('data', (chunk) => {
           const responseTime = Date.now() - startTime;

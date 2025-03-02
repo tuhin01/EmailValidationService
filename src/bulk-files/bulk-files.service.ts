@@ -37,6 +37,14 @@ export class BulkFilesService {
     });
   }
 
+  async getGreyListReadyBulkFile() {
+    return await BulkFile.find({
+      where: { file_status: BulkFileStatus.READY_FOR_GREY_LIST },
+      order: { id: 'ASC' },
+      take: 1,
+    });
+  }
+
   async saveBulkFile(createBulkFileDto: CreateBulkFileDto) {
     const bulkFile: BulkFile = BulkFile.create({ ...createBulkFileDto });
     return bulkFile.save();

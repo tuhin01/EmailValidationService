@@ -462,8 +462,9 @@ export class DomainService {
         dbDomain,
       );
 
-      const index = Math.floor(Math.random() * allMxRecordHost.length);
-      const mxRecordHost = allMxRecordHost[index].exchange;
+      // Get the 0 index mxHost as it has the highest priority.
+      // We sort the MX records by their priority in ASC order
+      const mxRecordHost = allMxRecordHost[0].exchange;
       // Save The domain if it is not already saved
       if (!dbDomain) {
         const createDomainDto: CreateDomainDto = {

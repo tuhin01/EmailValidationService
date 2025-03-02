@@ -42,10 +42,10 @@ export class SchedulerService {
     if (!pendingFiles.length) {
       return;
     }
-    const firstPendingFile: BulkFile = pendingFiles[0];
-    const user: User = await this.userService.findOneById(firstPendingFile.user_id);
+    const bulkFile: BulkFile = pendingFiles[0];
+    const user: User = await this.userService.findOneById(bulkFile.user_id);
     if (!user) {
-      this.winstonLoggerService.error('runFileEmailValidation()', `No user found for user_id: ${firstPendingFile.user_id}`);
+      this.winstonLoggerService.error('runFileEmailValidation()', `No user found for user_id: ${bulkFile.user_id}`);
 
       return;
     }
@@ -54,41 +54,17 @@ export class SchedulerService {
         file_status: BulkFileStatus.PROCESSING,
       };
       await this.bulkFilesService.updateBulkFile(
-        firstPendingFile.id,
+        bulkFile.id,
         processingStatus,
       );
-      const results: any[] = await this.__bulkValidate(firstPendingFile, user);
-      const greyListEmails: EmailValidationResponseType[] = [];
-      for (const result of results) {
-        if (result.email_sub_status === EmailReason.GREY_LISTED) {
-          greyListEmails.push(result);
-        }
-      }
-      if (greyListEmails.length) {
-        console.log('Adding to Grey list');
-        await this.queueService.addGreyListEmailToQueue(greyListEmails, firstPendingFile);
-      }
 
-      const {
-        valid_email_count,
-        invalid_email_count,
-        unknown_count,
-        catch_all_count,
-        do_not_mail_count,
-        spam_trap_count,
-      } = this.__getValidationsByTypes(results);
+      await this.__bulkValidate(bulkFile, user);
+
       const bulkFileUpdateData: UpdateBulkFileDto = {
-        file_status: greyListEmails.length > 0 ? BulkFileStatus.GREY_LIST_CHECK : BulkFileStatus.GREY_LIST_CHECK_DONE,
-        valid_email_count,
-        invalid_email_count,
-        unknown_count,
-        catch_all_count,
-        do_not_mail_count,
-        spam_trap_count,
-        updated_at: new Date(),
+        file_status: BulkFileStatus.READY_FOR_GREY_LIST,
       };
       await this.bulkFilesService.updateBulkFile(
-        firstPendingFile.id,
+        bulkFile.id,
         bulkFileUpdateData,
       );
 
@@ -99,22 +75,60 @@ export class SchedulerService {
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
+  public async processGreyListBulkFile() {
+    const greyListFile = await this.bulkFilesService.getGreyListReadyBulkFile();
+    console.log({ grayListFile: greyListFile });
+    if (!greyListFile.length) {
+      return;
+    }
+    const bulkFile: BulkFile = greyListFile[0];
+    const user: User = await this.userService.findOneById(bulkFile.user_id);
+    if (!user) {
+      this.winstonLoggerService.error('processGreyListBulkFile()', `No user found for user_id: ${bulkFile.user_id}`);
+
+      return;
+    }
+
+    const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(bulkFile.id);
+    const greyListEmails: EmailValidationResponseType[] = [];
+    for (const bulkFileEmail of bulkFileEmails) {
+      const email: ProcessedEmail = await this.domainService.getProcessedEmail(bulkFileEmail.email_address);
+      if (email.email_sub_status === EmailReason.GREY_LISTED) {
+        greyListEmails.push(email);
+      }
+    }
+    if (greyListEmails.length) {
+      console.log('Adding to Grey list');
+      await this.queueService.addGreyListEmailToQueue(greyListEmails, bulkFile);
+    }
+
+    const bulkFileUpdateData: UpdateBulkFileDto = {
+      file_status: BulkFileStatus.GREY_LIST_CHECK_PROGRESS,
+    };
+    await this.bulkFilesService.updateBulkFile(
+      bulkFile.id,
+      bulkFileUpdateData,
+    );
+
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
   public async generateCsvAndSendEmailForGreyListCheckedFiles() {
     const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
     console.log({ grayListFile: greyListFile });
     if (!greyListFile.length) {
       return;
     }
-    const firstGreyListFile: BulkFile = greyListFile[0];
-    const user: User = await this.userService.findOneById(firstGreyListFile.user_id);
+    const bulkFile: BulkFile = greyListFile[0];
+    const user: User = await this.userService.findOneById(bulkFile.user_id);
     if (!user) {
-      this.winstonLoggerService.error('runGrayListEmailValidation()', `No user found for user_id: ${firstGreyListFile.user_id}`);
+      this.winstonLoggerService.error('runGrayListEmailValidation()', `No user found for user_id: ${bulkFile.user_id}`);
 
       return;
     }
 
     // Generate all csv and update DB with updated counts.
-    const folderName: string = firstGreyListFile.file_path.split('/').at(-1).replace('.csv', '');
+    const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
     const csvSavePath: string = path.join(process.cwd(), '../uploads', 'csv', 'validated', folderName);
 
     const {
@@ -124,7 +138,7 @@ export class SchedulerService {
       catch_all_count,
       do_not_mail_count,
       spam_trap_count,
-    } = await this.__generateBulkFileResultCsv(firstGreyListFile.id, folderName);
+    } = await this.__generateBulkFileResultCsv(bulkFile.id, folderName);
 
     let completeStatus = {
       file_status: BulkFileStatus.COMPLETE,
@@ -138,11 +152,11 @@ export class SchedulerService {
       updated_at: new Date(),
     };
     await this.bulkFilesService.updateBulkFile(
-      firstGreyListFile.id,
+      bulkFile.id,
       completeStatus,
     );
 
-    await this.__sendEmailNotification(user, firstGreyListFile.id);
+    await this.__sendEmailNotification(user, bulkFile.id);
   }
 
   private async __generateBulkFileResultCsv(fileId: number, folderName: string) {
@@ -316,7 +330,7 @@ export class SchedulerService {
       }
 
       // Split emails into batches
-      const nonOutlookEmailBatches = this.__createBatchOfSize(batchSize, nonOutlookEmails)
+      const nonOutlookEmailBatches = this.__createBatchOfSize(batchSize, nonOutlookEmails);
       // For Outlook, each batch should have only 1 email.
       batchSize = 1;
       const outlookEmailBatches = this.__createBatchOfSize(batchSize, outlookEmails);
