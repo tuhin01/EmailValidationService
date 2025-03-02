@@ -21,6 +21,8 @@ import { Attachment } from 'nodemailer/lib/mailer';
 import { BulkFileEmailsService } from '@/bulk-file-emails/bulk-file-emails.service';
 import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
 import * as path from 'path';
+import { DEV, MicrosoftDomains } from '@/common/utility/constant';
+import * as process from 'process';
 
 @Injectable()
 export class SchedulerService {
@@ -77,7 +79,6 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   public async processGreyListBulkFile() {
     const greyListFile = await this.bulkFilesService.getGreyListReadyBulkFile();
-    console.log({ grayListFile: greyListFile });
     if (!greyListFile.length) {
       return;
     }
@@ -98,12 +99,12 @@ export class SchedulerService {
       }
     }
     if (greyListEmails.length) {
-      console.log('Adding to Grey list');
+      console.log(`Adding to Grey list ${greyListEmails.length} emails`);
       await this.queueService.addGreyListEmailToQueue(greyListEmails, bulkFile);
     }
 
     const bulkFileUpdateData: UpdateBulkFileDto = {
-      file_status: BulkFileStatus.GREY_LIST_CHECK_PROGRESS,
+      file_status: greyListEmails.length ? BulkFileStatus.GREY_LIST_CHECK_PROGRESS : BulkFileStatus.GREY_LIST_CHECK_DONE,
     };
     await this.bulkFilesService.updateBulkFile(
       bulkFile.id,
@@ -115,7 +116,6 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   public async generateCsvAndSendEmailForGreyListCheckedFiles() {
     const greyListFile = await this.bulkFilesService.getGreyListCheckBulkFile();
-    console.log({ grayListFile: greyListFile });
     if (!greyListFile.length) {
       return;
     }
@@ -129,7 +129,8 @@ export class SchedulerService {
 
     // Generate all csv and update DB with updated counts.
     const folderName: string = bulkFile.file_path.split('/').at(-1).replace('.csv', '');
-    const csvSavePath: string = path.join(process.cwd(), '../uploads', 'csv', 'validated', folderName);
+    const uploadPath: string = process.env.NODE_ENV === DEV ? '/uploads' : '../uploads';
+    const csvSavePath = path.join(process.cwd(), uploadPath, 'csv', 'validated', folderName);
 
     const {
       valid_email_count,
@@ -318,49 +319,103 @@ export class SchedulerService {
 
     try {
       const bulkFileEmails: BulkFileEmail[] = await this.bulkFileEmailsService.findBulkFileEmails(bulkFile.id);
+      const hotmailEmails: BulkFileEmail[] = [];
+      const hotmailMxRecord = 'hotmail-com.olc.protection.outlook.com';
+      const liveEmails: BulkFileEmail[] = [];
+      const liveMxRecord = 'live-com.olc.protection.outlook.com';
+      const msnEmails: BulkFileEmail[] = [];
+      const msnMxRecord = 'msn-com.olc.protection.outlook.com';
       const outlookEmails: BulkFileEmail[] = [];
+      const outlookMxRecord = 'outlook-com.olc.protection.outlook.com';
+      const outlookBusinessDomainEmails: BulkFileEmail[] = [];
       const nonOutlookEmails: BulkFileEmail[] = [];
       for (const bulkFileEmail of bulkFileEmails) {
-        const mxRecords = await this.domainService.checkDomainMxRecords(bulkFileEmail.email_address, null);
-        if (mxRecords[0].exchange.includes('outlook.com')) {
-          outlookEmails.push(bulkFileEmail);
+        const [account, domain] = bulkFileEmail.email_address.split('@');
+        console.log({ domain });
+        let mxRecords = [];
+        try {
+          mxRecords = await this.domainService.checkDomainMxRecords(domain, null);
+        } catch (e) {
+          results.push({
+            email_address: bulkFileEmail.email_address,
+            ...e,
+          });
+          continue;
+        }
+        // If MX record includes 'outlook.com' it means mail server is outlook.
+        // We split Outlook emails into few categories process them differently.
+        if (mxRecords[0].exchange.includes(MicrosoftDomains.OUTLOOK)) {
+          if (domain === MicrosoftDomains.HOTMAIL) {
+            hotmailEmails.push(bulkFileEmail);
+          } else if (domain === MicrosoftDomains.OUTLOOK) {
+            outlookEmails.push(bulkFileEmail);
+          } else if (domain === MicrosoftDomains.LIVE) {
+            liveEmails.push(bulkFileEmail);
+          } else if (domain === MicrosoftDomains.MSN) {
+            msnEmails.push(bulkFileEmail);
+          } else {
+            outlookBusinessDomainEmails.push(bulkFileEmail);
+          }
         } else {
           nonOutlookEmails.push(bulkFileEmail);
         }
+      }
+
+      const hotmailEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
+        batchSize, hotmailEmails, delayBetweenBatches, hotmailMxRecord, user, bulkFile,
+      );
+      if (hotmailEmailResults.length) {
+        results.push(...hotmailEmailResults);
+      }
+
+      const liveEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
+        batchSize, liveEmails, delayBetweenBatches, liveMxRecord, user, bulkFile,
+      );
+      if (liveEmailResults.length) {
+        results.push(...liveEmailResults);
+      }
+
+      const outlookEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
+        batchSize, outlookEmails, delayBetweenBatches, outlookMxRecord, user, bulkFile,
+      );
+      if (outlookEmailResults.length) {
+        results.push(...outlookEmailResults);
+      }
+
+      const msnEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
+        batchSize, msnEmails, delayBetweenBatches, msnMxRecord, user, bulkFile,
+      );
+      if (msnEmailResults.length) {
+        results.push(...msnEmailResults);
       }
 
       // Split emails into batches
       const nonOutlookEmailBatches = this.__createBatchOfSize(batchSize, nonOutlookEmails);
       // For Outlook, each batch should have only 1 email.
       batchSize = 1;
-      const outlookEmailBatches = this.__createBatchOfSize(batchSize, outlookEmails);
+      const outlookBusinessEmailBatches = this.__createBatchOfSize(batchSize, outlookBusinessDomainEmails);
 
       // Process each batch sequentially
-      console.log(`Starting NOT outlook emails...`);
       for (const batch of nonOutlookEmailBatches) {
-        console.log(`Starting batch of ${batch.length} emails...`);
         const result: EmailValidationResponseType[] = await this.__processBatchValidation(batch, limiter, user, bulkFile);
-        results.push(...result);
-        console.log(`Batch completed. Waiting ${delayBetweenBatches}ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+        if (result.length) {
+          results.push(...result);
+        }
+        await this.__delay(delayBetweenBatches);
       }
-      console.log(`Completed NOT outlook emails...`);
-
-      console.log(`Starting outlook emails...`);
       // For Outlook mail server we slow the limiter to only 1 per concurrency
       // and delay between batches is 2 sec as batch size is 1 email
       limiter = new Bottleneck({
         maxConcurrent: 1,
       });
       delayBetweenBatches = 2 * 1000;
-      for (const batch of outlookEmailBatches) {
-        console.log(`Starting batch of ${batch.length} emails...`);
+      for (const batch of outlookBusinessEmailBatches) {
         const result: EmailValidationResponseType[] = await this.__processBatchValidation(batch, limiter, user, bulkFile);
-        results.push(...result);
-        console.log(`Batch completed. Waiting ${delayBetweenBatches}ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+        if (result.length) {
+          results.push(...result);
+        }
+        await this.__delay(delayBetweenBatches);
       }
-      console.log(`Completed outlook emails...`);
 
       console.log('✅ All batches processed.');
       return results;
@@ -368,6 +423,35 @@ export class SchedulerService {
       console.error('❌ Error during bulk validation:', err);
       throw err; // Re-throw to let the caller handle it
     }
+  }
+
+  private async __processOutlookBatch(
+    batchSize: number,
+    emails: BulkFileEmail[],
+    delayBetweenBatches: number,
+    mxRecordHost: string,
+    user: User,
+    bulkFile: BulkFile,
+  ): Promise<EmailValidationResponseType[]> {
+    const results: EmailValidationResponseType[] = [];
+    if (!emails.length) {
+      return results;
+    }
+    // Split emails into batches
+    const emailBatches = this.__createBatchOfSize(batchSize, emails);
+    // Process each batch sequentially
+    for (const batch of emailBatches) {
+      const hotmailResponse: EmailValidationResponseType[] = await this.domainService.bulkOutlookEmailVerification(batch, mxRecordHost, user, bulkFile.id);
+      if (hotmailResponse.length) {
+        results.push(...hotmailResponse);
+      }
+      await this.__delay(delayBetweenBatches);
+    }
+    return results;
+  }
+
+  private async __delay(delay: number) {
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
   private __createBatchOfSize(size: number, emails: BulkFileEmail[]) {

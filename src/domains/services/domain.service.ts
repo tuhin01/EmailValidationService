@@ -33,6 +33,7 @@ import { MailerService } from '@/mailer/mailer.service';
 import { ConfigService } from '@nestjs/config';
 import { SmtpConnectionService } from '@/smtp-connection/smtp-connection.service';
 import { TimeService } from '@/time/time.service';
+import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
 
 @Injectable()
 export class DomainService {
@@ -384,6 +385,26 @@ export class DomainService {
     });
   }
 
+  async bulkOutlookEmailVerification(emails: BulkFileEmail[], mxRecordHost: string, user: User, bulkFileId: number) {
+    let smtpService: SmtpConnectionService;
+    let smtpConnectionStatus: EmailStatusType;
+    smtpService = new SmtpConnectionService(this.winstonLoggerService);
+    smtpConnectionStatus = await smtpService.connect(mxRecordHost);
+    const emailStatuses: EmailValidationResponseType[] = await smtpService.verifyBulkEmail(emails);
+    if (emailStatuses.length) {
+      for (const emailStatus of emailStatuses) {
+        if (emailStatus.email_sub_status !== EmailReason.GREY_LISTED) {
+          emailStatus.retry = RetryStatus.COMPLETE;
+        } else {
+          emailStatus.retry = RetryStatus.PENDING;
+        }
+        emailStatus.free_email = false;
+        await this.saveProcessedEmail(emailStatus, user, bulkFileId);
+      }
+    }
+    return emailStatuses;
+  }
+
   async smtpValidation(email: string, user: User, bulkFileId = null) {
     let emailStatus: EmailValidationResponseType = {
       email_address: email,
@@ -525,10 +546,6 @@ export class DomainService {
       emailStatus.free_email = freeEmailProviderList.includes(
         emailStatus.domain,
       );
-
-      if (emailStatus.email_sub_status === EmailReason.SOCKET_NOT_FOUND) {
-
-      }
       await this.saveProcessedErrorEmail(emailStatus, error, email, user, bulkFileId);
 
       return emailStatus;

@@ -5,6 +5,7 @@ import {
   EmailReason,
   EmailStatus,
   EmailStatusType,
+  EmailValidationResponseType,
   ipBlockedStringsArray,
   SMTPResponseCode,
 } from '@/common/utility/email-status-type';
@@ -12,6 +13,8 @@ import { WinstonLoggerService } from '@/logger/winston-logger.service';
 import { randomStringGenerator } from '@nestjs/common/utils/random-string-generator.util';
 import { SMTP_RESPONSE_MAX_DELAY } from '@/common/utility/constant';
 import freeEmailProviderList from '@/common/utility/free-email-provider-list';
+import { RetryStatus } from '@/domains/entities/processed_email.entity';
+import { BulkFileEmail } from '@/bulk-file-emails/entities/bulk-file-email.entity';
 
 @Injectable()
 export class SmtpConnectionService {
@@ -172,7 +175,7 @@ export class SmtpConnectionService {
   private async sendCommand(command: string, email = ''): Promise<string> {
     // Before sending a new command, try to remove previous command listeners to
     // avoid getting old stream response in socket.on('data')
-    this.socket.removeAllListeners();
+    // this.socket.removeAllListeners();
     let timeout: NodeJS.Timeout;
     // Track command start time to detect calculate server response time.
     let startTime = Date.now();
@@ -263,9 +266,9 @@ export class SmtpConnectionService {
   }
 
   async verifyEmail(email: string): Promise<EmailStatusType> {
-    const mailFrom = 'manob.tushar@gmail.com';
+    // TODO - Must use an email address that belongs to the domain DNS SPF records where the domain is hosted
+    const mailFrom = 'tuhin@leadsafeguard.store';
     const [account, domain] = email.split('@');
-    const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
     return new Promise(async (resolve, reject): Promise<EmailStatusType> => {
       try {
         await this.sendCommand(`EHLO ${this.host}`);
@@ -274,6 +277,7 @@ export class SmtpConnectionService {
         // Known Email Providers like gmail.com, yahoo.com, outlook.com do not
         // have catch all.
         if (!freeEmailProviderList.includes(domain)) {
+          const catchAllEmail = `${randomStringGenerator()}${Date.now()}@${domain}`;
           const responseCatchAllRcptTo = await this.sendCommand(`RCPT TO:<${catchAllEmail}>`, catchAllEmail);
           const catchAllEmailStatus: EmailStatusType = this.parseSmtpResponseData(responseCatchAllRcptTo, catchAllEmail);
           if (catchAllEmailStatus.status === EmailStatus.VALID) {
@@ -319,6 +323,73 @@ export class SmtpConnectionService {
         return;
       }
     });
+  }
+
+
+  async verifyBulkEmail(bulkFileEmails: BulkFileEmail[]): Promise<EmailValidationResponseType[]> {
+    const mailFrom = 'tanimpathan98@gmail.com';
+    let emailStatuses: EmailValidationResponseType[] = [];
+
+    await this.sendCommand(`EHLO ${this.host}`);
+    await this.sendCommand(`MAIL FROM:<${mailFrom}>`);
+    // Check for Catch-All email for business domains only.
+    // Known Email Providers like gmail.com, yahoo.com, outlook.com do not
+    // have catch all.
+    for (const bulkFileEmail of bulkFileEmails) {
+      const email = bulkFileEmail.email_address;
+      const [account, domain] = email.split('@');
+      try {
+        const responseRcptTo = await this.sendCommand(`RCPT TO:<${email}>`, email);
+        const emailStatus: EmailStatusType = this.parseSmtpResponseData(responseRcptTo, email);
+        console.log({ emailStatus });
+        emailStatuses.push({
+          email_address: email,
+          account,
+          domain,
+          email_status: emailStatus.status,
+          email_sub_status: emailStatus.reason,
+          retry: emailStatus.retry ? RetryStatus.PENDING : RetryStatus.COMPLETE,
+        });
+      } catch (e) {
+        console.log({ e });
+        let errorStatus: EmailStatusType;
+        if (typeof e === 'string') {
+          if (e === EmailReason.SMTP_TIMEOUT) {
+            errorStatus = {
+              status: EmailStatus.UNKNOWN,
+              reason: EmailReason.SMTP_TIMEOUT,
+            };
+          } else if (e === EmailReason.SOCKET_NOT_FOUND) {
+            errorStatus = {
+              status: EmailStatus.UNKNOWN,
+              reason: EmailReason.GREY_LISTED,
+            };
+          } else {
+            errorStatus = {
+              status: EmailStatus.UNKNOWN,
+              reason: e,
+            };
+          }
+        } else {
+          errorStatus = {
+            status: EmailStatus.INVALID,
+            reason: e.toString(),
+          };
+        }
+        console.log({ errorStatus });
+        emailStatuses.push({
+          email_address: email,
+          account,
+          domain,
+          email_status: errorStatus.status,
+          email_sub_status: errorStatus.reason,
+        });
+      }
+    }
+
+    console.log(emailStatuses);
+    this.socket.write(`QUIT\r\n`);
+    return emailStatuses;
   }
 
   public parseSmtpResponseData(
