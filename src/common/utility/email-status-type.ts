@@ -16,7 +16,7 @@ export type EmailValidationResponseType = {
 export type SendMailOptions = {
   to: string,
   fromEmail?: string,
-  bcc?: [],
+  bcc?: string[],
   subject: string,
   template: string,
   context?: object,
